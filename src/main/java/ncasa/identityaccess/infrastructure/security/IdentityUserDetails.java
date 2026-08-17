@@ -17,4 +17,7 @@ public record IdentityUserDetails(Long id, String email, String password, boolea
     @Override public String getPassword() { return password; }
     @Override public Collection<? extends GrantedAuthority> getAuthorities() { return authorities; }
     @Override public boolean isEnabled() { return enabled; }
+    @Override public boolean isAccountNonExpired() { return true; }
+    @Override public boolean isAccountNonLocked() { return true; }
+    @Override public boolean isCredentialsNonExpired() { return true; }
 }

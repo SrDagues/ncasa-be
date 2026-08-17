@@ -4,7 +4,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-interface SpringDataAuthIdentityRepository extends JpaRepository<JpaAuthIdentityEntity, Long> {
+public interface SpringDataAuthIdentityRepository extends JpaRepository<JpaAuthIdentityEntity, Long> {
     @EntityGraph(attributePaths = {"user", "user.roles"})
     Optional<JpaAuthIdentityEntity> findByProviderAndProviderUserId(String provider, String providerUserId);
 
