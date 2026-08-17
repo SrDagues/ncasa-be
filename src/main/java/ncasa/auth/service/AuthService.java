@@ -6,6 +6,7 @@ import ncasa.auth.dto.RegisterRequest;
 import ncasa.auth.dto.TokenResponse;
 import ncasa.auth.dto.UserResponse;
 import ncasa.common.exception.EmailAlreadyExistsException;
+import ncasa.identityaccess.application.port.out.AuthenticationOperations;
 import ncasa.security.CustomUserDetails;
 import ncasa.security.JwtService;
 import ncasa.user.entity.AuthIdentity;
@@ -20,8 +21,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Transitional infrastructure adapter around the existing authentication implementation.
+ * New Identity & Access use cases depend on AuthenticationOperations instead of this class.
+ */
 @Service
-public class AuthService {
+public class AuthService implements AuthenticationOperations {
     private final UserRepository users;
     private final AuthIdentityRepository identities;
     private final PasswordEncoder passwordEncoder;
@@ -39,6 +44,7 @@ public class AuthService {
         this.refreshTokens = refreshTokens;
     }
 
+    @Override
     @Transactional
     public TokenResponse register(RegisterRequest request) {
         String email = normalizeEmail(request.email());
@@ -53,6 +59,7 @@ public class AuthService {
         }
     }
 
+    @Override
     @Transactional
     public TokenResponse login(LoginRequest request) {
         var authentication = authenticationManager.authenticate(
@@ -63,6 +70,7 @@ public class AuthService {
         return issue(principal, user);
     }
 
+    @Override
     @Transactional
     public TokenResponse refresh(String rawRefreshToken) {
         var rotation = refreshTokens.rotate(rawRefreshToken);
@@ -70,6 +78,7 @@ public class AuthService {
         return tokenResponse(principal, rotation.refreshToken());
     }
 
+    @Override
     @Transactional
     public void logout(String rawRefreshToken, Long userId) {
         refreshTokens.revoke(rawRefreshToken, userId);
