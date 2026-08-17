@@ -1,19 +1,33 @@
 package ncasa.identityaccess.application.register;
 
-import ncasa.auth.dto.RegisterRequest;
-import ncasa.auth.dto.TokenResponse;
-import ncasa.identityaccess.application.port.out.AuthenticationOperations;
-import org.springframework.stereotype.Service;
+import java.time.Clock;
+import ncasa.identityaccess.application.AuthenticationResult;
+import ncasa.identityaccess.application.EmailAlreadyRegisteredException;
+import ncasa.identityaccess.application.port.out.PasswordHasher;
+import ncasa.identityaccess.application.port.out.UserAccountRepository;
+import ncasa.identityaccess.application.session.SessionIssuer;
+import ncasa.identityaccess.domain.Email;
+import ncasa.identityaccess.domain.UserAccount;
 
-@Service
-public class RegisterUserUseCase {
-    private final AuthenticationOperations authentication;
+public final class RegisterUserUseCase {
+    private final UserAccountRepository users;
+    private final PasswordHasher passwordHasher;
+    private final SessionIssuer sessions;
+    private final Clock clock;
 
-    public RegisterUserUseCase(AuthenticationOperations authentication) {
-        this.authentication = authentication;
+    public RegisterUserUseCase(UserAccountRepository users, PasswordHasher passwordHasher,
+            SessionIssuer sessions, Clock clock) {
+        this.users = users;
+        this.passwordHasher = passwordHasher;
+        this.sessions = sessions;
+        this.clock = clock;
     }
 
-    public TokenResponse execute(RegisterRequest request) {
-        return authentication.register(request);
+    public AuthenticationResult execute(String rawEmail, String rawPassword) {
+        Email email = Email.of(rawEmail);
+        if (users.existsByEmail(email)) throw new EmailAlreadyRegisteredException();
+        UserAccount account = UserAccount.registered(email, passwordHasher.hash(rawPassword), clock.instant());
+        account = users.save(account);
+        return sessions.issue(account).result();
     }
 }

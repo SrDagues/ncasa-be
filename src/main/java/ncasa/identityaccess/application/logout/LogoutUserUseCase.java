@@ -1,17 +1,26 @@
 package ncasa.identityaccess.application.logout;
 
-import ncasa.identityaccess.application.port.out.AuthenticationOperations;
-import org.springframework.stereotype.Service;
+import ncasa.identityaccess.application.InvalidRefreshTokenException;
+import ncasa.identityaccess.application.port.out.AuthSessionRepository;
+import ncasa.identityaccess.application.port.out.TokenHasher;
+import ncasa.identityaccess.domain.UserId;
 
-@Service
-public class LogoutUserUseCase {
-    private final AuthenticationOperations authentication;
+public final class LogoutUserUseCase {
+    private final AuthSessionRepository sessions;
+    private final TokenHasher tokenHasher;
 
-    public LogoutUserUseCase(AuthenticationOperations authentication) {
-        this.authentication = authentication;
+    public LogoutUserUseCase(AuthSessionRepository sessions, TokenHasher tokenHasher) {
+        this.sessions = sessions;
+        this.tokenHasher = tokenHasher;
     }
 
-    public void execute(String refreshToken, Long userId) {
-        authentication.logout(refreshToken, userId);
+    public void execute(String rawRefreshToken, Long authenticatedUserId) {
+        var session = sessions.findByTokenHashForUpdate(tokenHasher.hash(rawRefreshToken))
+                .orElseThrow(InvalidRefreshTokenException::new);
+        if (session.revoked() || !session.userId().equals(new UserId(authenticatedUserId))) {
+            throw new InvalidRefreshTokenException();
+        }
+        session.revoke();
+        sessions.save(session);
     }
 }
