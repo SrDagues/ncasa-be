@@ -46,6 +46,8 @@ Los access tokens son JWT HS256 de corta duración. El adaptador JWT incluye `su
 
 Los refresh tokens son valores aleatorios de 48 bytes. Nunca se almacenan en claro: se persiste SHA-256. En cada refresh se bloquea la fila, se valida la sesión, se emite una sesión nueva y se revoca la anterior apuntando a su sustituta.
 
+Para el cliente web, el access token se devuelve en JSON y se mantiene únicamente en memoria. El refresh token se transporta en la cookie `ncasa_refresh`, marcada como `HttpOnly`, con `SameSite=Lax` y limitada a `/api/auth`. JavaScript no puede leer esta cookie.
+
 ## Endpoints
 
 Los contratos HTTP se mantienen:
@@ -58,12 +60,11 @@ POST /api/auth/logout
 GET  /api/auth/me
 ```
 
-`register`, `login` y `refresh` devuelven:
+`login` y `refresh` devuelven:
 
 ```json
 {
   "accessToken": "...",
-  "refreshToken": "...",
   "tokenType": "Bearer",
   "expiresIn": 900,
   "user": {
@@ -73,6 +74,22 @@ GET  /api/auth/me
   }
 }
 ```
+
+Además, ambas respuestas incluyen:
+
+```http
+Set-Cookie: ncasa_refresh=...; Path=/api/auth; Max-Age=2592000; HttpOnly; SameSite=Lax
+```
+
+`refresh` no recibe body: lee la cookie, rota la sesión y reemplaza la cookie. La cookie anterior deja de ser válida inmediatamente.
+
+`logout` tampoco necesita body. Revoca la sesión asociada cuando existe y devuelve siempre `204 No Content` con una cookie expirada, por lo que es idempotente:
+
+```http
+Set-Cookie: ncasa_refresh=; Path=/api/auth; Max-Age=0; HttpOnly; SameSite=Lax
+```
+
+El endpoint de registro conserva temporalmente su contrato existente. Su adaptación al transporte web por cookie queda fuera de este plan incremental, que modifica explícitamente login, refresh y logout.
 
 ## Configuración
 
@@ -84,13 +101,58 @@ DB_USERNAME=ncasa_user
 DB_PASSWORD=...
 JWT_SECRET=...                 # mínimo 32 caracteres
 CORS_ALLOWED_ORIGINS=http://localhost:4200
+REFRESH_COOKIE_SECURE=false     # true en producción con HTTPS
 ```
 
 Las duraciones siguen configurándose con `security.jwt.access-token-expiration` y `security.jwt.refresh-token-expiration`.
 
+La configuración de la cookie está bajo `app.auth.refresh-cookie`: nombre, ruta, `SameSite`, indicador `Secure` y duración. CORS acepta credenciales únicamente para los orígenes explícitos de `CORS_ALLOWED_ORIGINS`; no debe combinarse con `*`.
+
+## Flujo web con curl
+
+Registrar una cuenta, si todavía no existe:
+
+```bash
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"password123"}'
+```
+
+Iniciar sesión y guardar la cookie fuera de JavaScript:
+
+```bash
+curl -c cookies.txt \
+  -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"password123"}'
+```
+
+Usar el `accessToken` recibido para acceder a un endpoint protegido:
+
+```bash
+curl http://localhost:8080/api/auth/me \
+  -H "Authorization: Bearer ACCESS_TOKEN"
+```
+
+Rotar la sesión y obtener un access token nuevo:
+
+```bash
+curl -b cookies.txt -c cookies.txt \
+  -X POST http://localhost:8080/api/auth/refresh
+```
+
+Cerrar la sesión y eliminar la cookie:
+
+```bash
+curl -b cookies.txt -c cookies.txt \
+  -X POST http://localhost:8080/api/auth/logout
+```
+
 ## OAuth futuro
 
 OAuth se añadirá como infraestructura y como nuevos casos de uso (`oauth-login`, `link-provider`, `unlink-provider`). El proveedor externo no se convertirá en una dependencia del dominio. `UserAccount` seguirá siendo la identidad interna estable de nCasa.
+
+Un futuro cliente móvil reutilizará los mismos casos de uso y podrá incorporar otro adaptador de entrada con un transporte apropiado. No se crean ahora endpoints móviles, metadatos de dispositivo ni migraciones específicas.
 
 ## Pruebas
 

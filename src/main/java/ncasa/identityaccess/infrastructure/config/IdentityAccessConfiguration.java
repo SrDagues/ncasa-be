@@ -13,10 +13,13 @@ import ncasa.identityaccess.application.refresh.RefreshSessionUseCase;
 import ncasa.identityaccess.application.register.RegisterUserUseCase;
 import ncasa.identityaccess.application.session.SessionIssuer;
 import ncasa.identityaccess.infrastructure.security.JwtProperties;
+import ncasa.identityaccess.infrastructure.web.RefreshCookieProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@EnableConfigurationProperties(RefreshCookieProperties.class)
 public class IdentityAccessConfiguration {
     @Bean
     SessionIssuer sessionIssuer(AuthSessionRepository sessions, RefreshTokenGenerator refreshTokens,
