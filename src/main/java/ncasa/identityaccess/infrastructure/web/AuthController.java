@@ -5,7 +5,6 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.util.List;
-import ncasa.identityaccess.application.AuthenticatedUser;
 import ncasa.identityaccess.application.AuthenticationResult;
 import ncasa.identityaccess.application.InvalidRefreshTokenException;
 import ncasa.identityaccess.application.login.LoginUserUseCase;
@@ -46,9 +45,11 @@ public class AuthController {
 
     @PostMapping("/register")
     @Transactional
-    ResponseEntity<TokenResponse> register(@Valid @RequestBody RegisterRequest request) {
+    ResponseEntity<WebAuthenticationResponse> register(@Valid @RequestBody RegisterRequest request) {
+        AuthenticationResult result = registerUser.execute(request.email(), request.password());
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(TokenResponse.from(registerUser.execute(request.email(), request.password())));
+                .header(HttpHeaders.SET_COOKIE, refreshCookies.create(result.refreshToken()).toString())
+                .body(WebAuthenticationResponse.from(result));
     }
 
     @PostMapping("/login")
@@ -98,12 +99,4 @@ public class AuthController {
     public record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {}
     public record UserResponse(Long id, String email, List<String> roles) {}
 
-    public record TokenResponse(String accessToken, String refreshToken, String tokenType,
-            long expiresIn, UserResponse user) {
-        static TokenResponse from(AuthenticationResult result) {
-            AuthenticatedUser user = result.user();
-            return new TokenResponse(result.accessToken(), result.refreshToken(), result.tokenType(), result.expiresIn(),
-                    new UserResponse(user.id(), user.email(), user.roles()));
-        }
-    }
 }

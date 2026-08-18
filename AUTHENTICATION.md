@@ -60,7 +60,7 @@ POST /api/auth/logout
 GET  /api/auth/me
 ```
 
-`login` y `refresh` devuelven:
+`register`, `login` y `refresh` devuelven:
 
 ```json
 {
@@ -75,7 +75,7 @@ GET  /api/auth/me
 }
 ```
 
-Además, ambas respuestas incluyen:
+Además, las tres respuestas incluyen:
 
 ```http
 Set-Cookie: ncasa_refresh=...; Path=/api/auth; Max-Age=2592000; HttpOnly; SameSite=Lax
@@ -88,8 +88,6 @@ Set-Cookie: ncasa_refresh=...; Path=/api/auth; Max-Age=2592000; HttpOnly; SameSi
 ```http
 Set-Cookie: ncasa_refresh=; Path=/api/auth; Max-Age=0; HttpOnly; SameSite=Lax
 ```
-
-El endpoint de registro conserva temporalmente su contrato existente. Su adaptación al transporte web por cookie queda fuera de este plan incremental, que modifica explícitamente login, refresh y logout.
 
 ## Configuración
 
@@ -113,7 +111,8 @@ La configuración de la cookie está bajo `app.auth.refresh-cookie`: nombre, rut
 Registrar una cuenta, si todavía no existe:
 
 ```bash
-curl -X POST http://localhost:8080/api/auth/register \
+curl -c cookies.txt \
+  -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"user@example.com","password":"password123"}'
 ```

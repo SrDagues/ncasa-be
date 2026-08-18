@@ -53,8 +53,12 @@ class AuthIntegrationTests {
     @Test void shouldRegisterUserWhenDataIsValid() throws Exception {
         mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"User@Example.com\",\"password\":\"password123\"}"))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.containsString("ncasa_refresh="),
+                        org.hamcrest.Matchers.containsString("HttpOnly"))))
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
                 .andExpect(jsonPath("$.expiresIn").value(900))
                 .andExpect(jsonPath("$.user.email").value("user@example.com"))
                 .andExpect(jsonPath("$.user.roles[0]").value("ROLE_USER"));
@@ -215,18 +219,17 @@ class AuthIntegrationTests {
     }
 
     @Test void shouldCompleteWebAuthenticationLifecycle() throws Exception {
-        register("user@example.com", "password123");
         String credentials = json.writeValueAsString(
                 java.util.Map.of("email", "user@example.com", "password", "password123"));
 
-        MvcResult login = mvc.perform(post("/api/auth/login")
+        MvcResult registration = mvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON).content(credentials))
-                .andExpect(status().isOk()).andReturn();
-        JsonNode loginBody = json.readTree(login.getResponse().getContentAsString());
-        Cookie cookieA = refreshCookieFrom(login.getResponse().getHeader("Set-Cookie"));
+                .andExpect(status().isCreated()).andReturn();
+        JsonNode registrationBody = json.readTree(registration.getResponse().getContentAsString());
+        Cookie cookieA = refreshCookieFrom(registration.getResponse().getHeader("Set-Cookie"));
 
         mvc.perform(get("/api/auth/me")
-                        .header("Authorization", "Bearer " + loginBody.get("accessToken").asString()))
+                        .header("Authorization", "Bearer " + registrationBody.get("accessToken").asString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("user@example.com"));
 

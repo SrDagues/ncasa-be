@@ -58,7 +58,7 @@ La decisión reduce la exposición del token duradero y conserva el modelo JWT y
 ## Implementation constraints
 
 - Dominio y aplicación no importarán tipos HTTP, cookies ni Spring.
-- La respuesta JSON de login y refresh no contendrá `refreshToken`.
+- La respuesta JSON de registro, login y refresh no contendrá `refreshToken`.
 - La cookie se configurará mediante `app.auth.refresh-cookie.*`.
 - CORS con credenciales nunca utilizará el origen `*`.
 - No se crearán endpoints móviles ni metadatos de dispositivo hasta que exista ese cliente.
@@ -66,7 +66,7 @@ La decisión reduce la exposición del token duradero y conserva el modelo JWT y
 ## Validation
 
 - Tests unitarios para configuración, construcción de cookies y logout.
-- Tests HTTP para login, refresh, logout y CORS.
+- Tests HTTP para registro, login, refresh, logout y CORS.
 - Pruebas de integración para rotación y ciclo completo de autenticación.
 
 ## Follow-up
