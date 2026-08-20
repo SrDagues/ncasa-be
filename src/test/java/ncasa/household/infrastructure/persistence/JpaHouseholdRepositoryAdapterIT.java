@@ -20,6 +20,8 @@ class JpaHouseholdRepositoryAdapterIT extends PostgresIntegrationTest {
 
     @BeforeEach
     void setUpAccount() {
+        jdbc.update("DELETE FROM expense_allocations");
+        jdbc.update("DELETE FROM expenses");
         jdbc.update("DELETE FROM household_invitations");
         jdbc.update("DELETE FROM household_members");
         jdbc.update("DELETE FROM households");

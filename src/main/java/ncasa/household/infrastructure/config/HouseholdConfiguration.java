@@ -20,6 +20,9 @@ public class HouseholdConfiguration {
     @Bean HouseholdViewAssembler householdViews(AccountDirectoryPort accounts) { return new HouseholdViewAssembler(accounts); }
     @Bean CreateHouseholdUseCase createHousehold(HouseholdRepository r, Clock c, HouseholdViewAssembler v) { return new CreateHouseholdUseCase(r, c, v); }
     @Bean GetHouseholdUseCase getHousehold(HouseholdRepository r, HouseholdViewAssembler v) { return new GetHouseholdUseCase(r, v); }
+    @Bean GetHouseholdMembershipContextUseCase householdMembershipContext(HouseholdRepository r) {
+        return new GetHouseholdMembershipContextUseCase(r);
+    }
     @Bean GetHouseholdMembersUseCase getMembers(HouseholdRepository r, HouseholdViewAssembler v) { return new GetHouseholdMembersUseCase(r, v); }
     @Bean ListAccountHouseholdsUseCase listHouseholds(HouseholdRepository r) { return new ListAccountHouseholdsUseCase(r); }
     @Bean RenameHouseholdUseCase renameHousehold(HouseholdRepository r, Clock c, HouseholdViewAssembler v) { return new RenameHouseholdUseCase(r, c, v); }

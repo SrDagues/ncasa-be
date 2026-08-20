@@ -16,6 +16,7 @@ import ncasa.household.application.accept.AcceptInvitationByIdUseCase;
 import ncasa.household.application.accept.InvitationAcceptanceService;
 import ncasa.household.application.create.CreateHouseholdUseCase;
 import ncasa.household.application.get.ListAccountHouseholdsUseCase;
+import ncasa.household.application.get.GetHouseholdMembershipContextUseCase;
 import ncasa.household.application.invite.GetHouseholdPendingInvitationsUseCase;
 import ncasa.household.application.invite.InviteHouseholdMemberUseCase;
 import ncasa.household.application.port.out.HouseholdInvitationRepository;
@@ -76,6 +77,18 @@ class HouseholdUseCasesTest {
             assertThat(summary.owner()).isTrue();
         });
         assertThat(useCase.execute(new AccountId(99L))).isEmpty();
+    }
+
+    @Test
+    void shouldExposeOnlyActiveMembershipContextToOtherFeatures() {
+        Household household = createHousehold();
+
+        var context = new GetHouseholdMembershipContextUseCase(households)
+                .execute(household.id(), new AccountId(1L));
+
+        assertThat(context.actorMemberId()).isEqualTo(household.ownerMemberId().value());
+        assertThat(context.actorRole()).isEqualTo(HouseholdRole.ADMIN);
+        assertThat(context.activeMemberIds()).containsExactly(household.ownerMemberId().value());
     }
 
     @Test
