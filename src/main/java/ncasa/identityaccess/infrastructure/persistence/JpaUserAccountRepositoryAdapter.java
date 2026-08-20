@@ -1,6 +1,8 @@
 package ncasa.identityaccess.infrastructure.persistence;
 
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import ncasa.identityaccess.application.EmailAlreadyRegisteredException;
 import ncasa.identityaccess.application.port.out.UserAccountRepository;
@@ -38,6 +40,12 @@ public class JpaUserAccountRepositoryAdapter implements UserAccountRepository {
     @Override
     public Optional<UserAccount> findById(UserId id) {
         return identities.findByProviderAndUser_Id(LOCAL, id.value()).map(this::toDomain);
+    }
+
+    @Override
+    public Map<UserId, Email> findEmailsByIds(Set<UserId> ids) {
+        return users.findAllById(ids.stream().map(UserId::value).toList()).stream()
+                .collect(Collectors.toMap(user -> new UserId(user.id()), user -> Email.of(user.email())));
     }
 
     @Override
