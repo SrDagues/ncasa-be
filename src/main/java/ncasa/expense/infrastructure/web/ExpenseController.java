@@ -64,9 +64,11 @@ public class ExpenseController {
     ExpensePageResponse list(@AuthenticationPrincipal IdentityUserDetails user, @PathVariable UUID householdId,
             @RequestParam(required = false) LocalDate from, @RequestParam(required = false) LocalDate to,
             @RequestParam(defaultValue = "CONFIRMED") ExpenseStatus status,
+            @RequestParam(required = false) UUID payerMemberId,
+            @RequestParam(required = false) UUID participantMemberId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         return ExpensePageResponse.from(list.execute(new ListExpensesQuery(user.id(), householdId,
-                from, to, status, page, size)));
+                from, to, status, payerMemberId, participantMemberId, page, size)));
     }
 
     @PostMapping("/{expenseId}/void")

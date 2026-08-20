@@ -22,8 +22,12 @@ public final class ListExpensesUseCase {
             throw new IllegalArgumentException("From date must not be after to date");
         }
         var household = new HouseholdRef(query.householdId());
-        householdAccess.getContext(household, query.actorAccountId());
-        var result = expenses.findPage(household, query.from(), query.to(), query.status(), query.page(), query.size());
+        var context = householdAccess.getContext(household, query.actorAccountId());
+        var payer = query.payerMemberId() == null ? null : new ncasa.expense.domain.MemberRef(query.payerMemberId());
+        var participant = query.participantMemberId() == null ? null : new ncasa.expense.domain.MemberRef(query.participantMemberId());
+        if (payer != null) context.requireMember(payer);
+        if (participant != null) context.requireMember(participant);
+        var result = expenses.findPage(household, query.from(), query.to(), query.status(), payer, participant, query.page(), query.size());
         int totalPages = result.totalElements() == 0 ? 0
                 : (int) Math.ceil((double) result.totalElements() / query.size());
         return new ExpensePage(result.items().stream().map(ExpenseView::from).toList(), query.page(), query.size(),

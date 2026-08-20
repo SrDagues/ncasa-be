@@ -1,0 +1,3 @@
+package ncasa.expense.application.settlement;
+import java.util.UUID; import ncasa.expense.application.*; import ncasa.expense.application.port.out.*; import ncasa.expense.domain.*;
+public final class GetSettlementUseCase {private final SettlementRepository r;private final HouseholdExpenseAccessPort a;public GetSettlementUseCase(SettlementRepository r,HouseholdExpenseAccessPort a){this.r=r;this.a=a;}public SettlementView execute(Long actor,UUID householdId,UUID id){var h=new HouseholdRef(householdId);a.getContext(h,actor);return r.findByIdAndHousehold(new SettlementId(id),h).map(SettlementView::from).orElseThrow(SettlementNotFoundException::new);}}

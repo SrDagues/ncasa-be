@@ -26,7 +26,10 @@ public final class GetHouseholdMembershipContextUseCase {
                 .filter(HouseholdMember::isActive)
                 .map(member -> member.id().value())
                 .collect(Collectors.toUnmodifiableSet());
+        var allMemberIds = household.members().stream()
+                .map(member -> member.id().value())
+                .collect(Collectors.toUnmodifiableSet());
         return new HouseholdMembershipContext(household.id().value(), actorMember.id().value(),
-                actorMember.role(), activeMemberIds);
+                actorMember.role(), activeMemberIds, allMemberIds);
     }
 }

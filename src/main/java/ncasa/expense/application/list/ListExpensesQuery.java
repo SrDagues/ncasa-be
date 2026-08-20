@@ -5,4 +5,9 @@ import java.util.UUID;
 import ncasa.expense.domain.ExpenseStatus;
 
 public record ListExpensesQuery(Long actorAccountId, UUID householdId, LocalDate from, LocalDate to,
-        ExpenseStatus status, int page, int size) {}
+        ExpenseStatus status, UUID payerMemberId, UUID participantMemberId, int page, int size) {
+    public ListExpensesQuery(Long actorAccountId, UUID householdId, LocalDate from, LocalDate to,
+            ExpenseStatus status, int page, int size) {
+        this(actorAccountId, householdId, from, to, status, null, null, page, size);
+    }
+}

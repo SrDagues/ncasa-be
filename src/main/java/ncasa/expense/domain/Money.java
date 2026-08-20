@@ -44,6 +44,16 @@ public record Money(BigDecimal amount, String currency) {
         return new Money(amount.add(other.amount), currency);
     }
 
+    public Money subtract(Money other) {
+        requireSameCurrency(other);
+        return new Money(amount.subtract(other.amount), currency);
+    }
+
+    public Money negate() { return new Money(amount.negate(), currency); }
+    public boolean isZero() { return amount.signum() == 0; }
+    public int compareTo(Money other) { requireSameCurrency(other); return amount.compareTo(other.amount); }
+    public static Money zero(String currency) { return Money.of("0", currency); }
+
     public void requireSameCurrency(Money other) {
         Objects.requireNonNull(other, "Money is required");
         if (!currency.equals(other.currency)) {

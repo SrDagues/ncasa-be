@@ -32,8 +32,15 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepository {
     @Override
     public ExpensePageSlice findPage(HouseholdRef householdId, LocalDate from, LocalDate to,
             ExpenseStatus status, int page, int size) {
+        return findPage(householdId, from, to, status, null, null, page, size);
+    }
+
+    @Override
+    public ExpensePageSlice findPage(HouseholdRef householdId, LocalDate from, LocalDate to,
+            ExpenseStatus status, MemberRef payer, MemberRef participant, int page, int size) {
         var ids = repository.findPageIds(householdId.value(), from, to,
-                status == null ? null : status.name(), PageRequest.of(page, size));
+                status == null ? null : status.name(), payer == null ? null : payer.value(),
+                participant == null ? null : participant.value(), PageRequest.of(page, size));
         if (ids.isEmpty()) return new ExpensePageSlice(java.util.List.of(), ids.getTotalElements());
         Map<UUID, JpaExpenseEntity> entities = repository.findByIdIn(ids.getContent()).stream()
                 .collect(Collectors.toMap(JpaExpenseEntity::id, Function.identity()));
