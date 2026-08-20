@@ -44,6 +44,9 @@ class AuthIntegrationTests {
 
     @BeforeEach
     void cleanDatabase() {
+        jdbc.update("DELETE FROM household_invitations");
+        jdbc.update("DELETE FROM household_members");
+        jdbc.update("DELETE FROM households");
         jdbc.update("DELETE FROM refresh_tokens");
         jdbc.update("DELETE FROM auth_identities");
         jdbc.update("DELETE FROM user_roles");
