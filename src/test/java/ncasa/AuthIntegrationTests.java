@@ -8,14 +8,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import jakarta.servlet.http.Cookie;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.HexFormat;
-import jakarta.servlet.http.Cookie;
+import java.util.stream.Collectors;
 import javax.crypto.spec.SecretKeySpec;
+import ncasa.common.infrastructure.logging.HttpRequestLoggingFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
@@ -194,7 +200,18 @@ class AuthIntegrationTests {
     }
 
     @Test void shouldRejectProtectedEndpointWithoutJwt() throws Exception {
-        mvc.perform(get("/api/auth/me")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/auth/me").header("X-Request-ID", "unauthorized-request"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string("X-Request-ID", "unauthorized-request"))
+                .andExpect(jsonPath("$.requestId").value("unauthorized-request"));
+    }
+
+    @Test void shouldGenerateAndReturnRequestId() throws Exception {
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"missing@example.com\",\"password\":\"password123\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().exists("X-Request-ID"))
+                .andExpect(jsonPath("$.requestId").isNotEmpty());
     }
 
     @Test void shouldAllowProtectedEndpointWithValidJwt() throws Exception {
@@ -203,13 +220,51 @@ class AuthIntegrationTests {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.email").value("user@example.com"));
     }
 
+    @Test void shouldCorrelateAuthenticatedRequestWithTechnicalUserId() throws Exception {
+        JsonNode tokens = register("user@example.com", "password123");
+        var logger = (Logger) LoggerFactory.getLogger(HttpRequestLoggingFilter.class);
+        var appender = new ListAppender<ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            mvc.perform(get("/api/auth/me")
+                            .header("Authorization", "Bearer " + tokens.get("accessToken").asString())
+                            .header("X-Request-ID", "authenticated-request"))
+                    .andExpect(status().isOk());
+
+            ILoggingEvent event = appender.list.stream()
+                    .filter(candidate -> "authenticated-request".equals(
+                            candidate.getMDCPropertyMap().get("requestId")))
+                    .findFirst().orElseThrow();
+            java.util.Map<String, Object> fields = event.getKeyValuePairs().stream()
+                    .collect(Collectors.toMap(pair -> pair.key, pair -> pair.value));
+            org.assertj.core.api.Assertions.assertThat(event.getMDCPropertyMap().get("userId")).isNotBlank();
+            org.assertj.core.api.Assertions.assertThat(fields).containsEntry("url.path", "/api/auth/me");
+        } finally {
+            logger.detachAppender(appender);
+        }
+    }
+
     @Test void shouldAllowCredentialsForConfiguredCorsOrigin() throws Exception {
         mvc.perform(options("/api/auth/login")
                         .header("Origin", "http://localhost:4200")
-                        .header("Access-Control-Request-Method", "POST"))
+                        .header("Access-Control-Request-Method", "POST")
+                        .header("Access-Control-Request-Headers", "X-Request-ID"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:4200"))
-                .andExpect(header().string("Access-Control-Allow-Credentials", "true"));
+                .andExpect(header().string("Access-Control-Allow-Credentials", "true"))
+                .andExpect(header().string("Access-Control-Allow-Headers", org.hamcrest.Matchers.containsString("X-Request-ID")));
+    }
+
+    @Test void shouldExposeRequestIdToConfiguredCorsOrigin() throws Exception {
+        mvc.perform(post("/api/auth/login")
+                        .header("Origin", "http://localhost:4200")
+                        .header("X-Request-ID", "browser-request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"missing@example.com\",\"password\":\"password123\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string("X-Request-ID", "browser-request"))
+                .andExpect(header().string("Access-Control-Expose-Headers", org.hamcrest.Matchers.containsString("X-Request-ID")));
     }
 
     @Test void shouldRejectUnknownCorsOrigin() throws Exception {
