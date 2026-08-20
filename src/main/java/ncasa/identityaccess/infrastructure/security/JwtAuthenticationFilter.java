@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import ncasa.common.infrastructure.logging.HttpRequestLoggingFilter;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -33,6 +34,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 var authentication = UsernamePasswordAuthenticationToken.authenticated(user, null, user.getAuthorities());
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+                request.setAttribute(HttpRequestLoggingFilter.AUTHENTICATED_USER_ID_ATTRIBUTE, user.id());
             } catch (RuntimeException ignored) {
                 SecurityContextHolder.clearContext();
             }

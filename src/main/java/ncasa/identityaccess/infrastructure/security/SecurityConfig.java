@@ -6,6 +6,8 @@ import java.util.List;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import ncasa.common.exception.ApiError;
+import ncasa.common.infrastructure.logging.HttpRequestLoggingFilter;
+import org.slf4j.MDC;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -42,6 +44,14 @@ public class SecurityConfig {
         return registration;
     }
 
+    @Bean
+    FilterRegistrationBean<HttpRequestLoggingFilter> disableRequestLoggingContainerRegistration(
+            HttpRequestLoggingFilter filter) {
+        var registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
     @Bean PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
     @Bean Clock clock() { return Clock.systemUTC(); }
 
@@ -59,7 +69,7 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter,
-            ObjectMapper objectMapper) throws Exception {
+            HttpRequestLoggingFilter requestLoggingFilter, ObjectMapper objectMapper) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
@@ -73,15 +83,18 @@ public class SecurityConfig {
                             response.setStatus(HttpStatus.UNAUTHORIZED.value());
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             objectMapper.writeValue(response.getOutputStream(), new ApiError(Instant.now(), 401,
-                                    "Unauthorized", "Authentication is required", java.util.Map.of()));
+                                    "Unauthorized", "Authentication is required", java.util.Map.of(),
+                                    MDC.get(HttpRequestLoggingFilter.REQUEST_ID_MDC_KEY)));
                         })
                         .accessDeniedHandler((request, response, ex) -> {
                             response.setStatus(HttpStatus.FORBIDDEN.value());
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             objectMapper.writeValue(response.getOutputStream(), new ApiError(Instant.now(), 403,
-                                    "Forbidden", "Access is denied", java.util.Map.of()));
+                                    "Forbidden", "Access is denied", java.util.Map.of(),
+                                    MDC.get(HttpRequestLoggingFilter.REQUEST_ID_MDC_KEY)));
                         }))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(requestLoggingFilter, JwtAuthenticationFilter.class)
                 .build();
     }
 
@@ -90,7 +103,8 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(properties.allowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", HttpRequestLoggingFilter.REQUEST_ID_HEADER));
+        config.setExposedHeaders(List.of(HttpRequestLoggingFilter.REQUEST_ID_HEADER));
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

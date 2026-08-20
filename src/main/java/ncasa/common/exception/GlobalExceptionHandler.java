@@ -13,16 +13,21 @@ import ncasa.household.domain.HouseholdAccessDeniedException;
 import ncasa.household.domain.HouseholdRuleViolationException;
 import ncasa.household.domain.InvitationExpiredException;
 import ncasa.household.domain.InvitationStateException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(EmailAlreadyRegisteredException.class)
     ResponseEntity<ApiError> conflict(EmailAlreadyRegisteredException ex) {
         return response(HttpStatus.CONFLICT, ex.getMessage(), Map.of());
@@ -76,8 +81,18 @@ public class GlobalExceptionHandler {
         return response(HttpStatus.BAD_REQUEST, ex.getMessage(), Map.of());
     }
 
+    @ExceptionHandler(Exception.class)
+    ResponseEntity<ApiError> unexpected(Exception ex) {
+        LOGGER.atError()
+                .addKeyValue("event.action", "unhandled_request_exception")
+                .setCause(ex)
+                .log("unhandled_request_exception");
+        return response(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", Map.of());
+    }
+
     private ResponseEntity<ApiError> response(HttpStatus status, String message, Map<String, String> fields) {
         return ResponseEntity.status(status).body(
-                new ApiError(Instant.now(), status.value(), status.getReasonPhrase(), message, fields));
+                new ApiError(Instant.now(), status.value(), status.getReasonPhrase(), message, fields,
+                        MDC.get("requestId")));
     }
 }
