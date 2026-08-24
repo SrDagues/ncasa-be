@@ -13,6 +13,7 @@ public final class Expense {
     private final ExpenseDescription description;
     private final LocalDate expenseDate;
     private final ExpenseSplit split;
+    private ExpenseCategoryId categoryId;
     private ExpenseStatus status;
     private final ExpenseSource source;
     private final Instant createdAt;
@@ -23,7 +24,7 @@ public final class Expense {
 
     private Expense(ExpenseId id, HouseholdRef householdId, MemberRef createdByMemberId,
             MemberRef payerMemberId, Money total, ExpenseDescription description, LocalDate expenseDate,
-            ExpenseSplit split, ExpenseStatus status, ExpenseSource source, Instant createdAt,
+            ExpenseSplit split, ExpenseCategoryId categoryId, ExpenseStatus status, ExpenseSource source, Instant createdAt,
             Instant updatedAt, VoidReason voidReason, Instant voidedAt, long version) {
         this.id = Objects.requireNonNull(id);
         this.householdId = Objects.requireNonNull(householdId);
@@ -34,6 +35,7 @@ public final class Expense {
         this.description = Objects.requireNonNull(description);
         this.expenseDate = Objects.requireNonNull(expenseDate);
         this.split = Objects.requireNonNull(split);
+        this.categoryId = categoryId;
         total.requireSameCurrency(split.total());
         if (total.amount().compareTo(split.total().amount()) != 0) {
             throw new ExpenseRuleViolationException("Expense split total must match expense total");
@@ -53,7 +55,15 @@ public final class Expense {
             MemberRef payerMemberId, Money total, ExpenseDescription description, LocalDate expenseDate,
             ExpenseSplit split, Instant now) {
         return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description,
-                expenseDate, split, ExpenseStatus.CONFIRMED, ExpenseSource.MANUAL, now, now, null, null, 0);
+                expenseDate, split, null, ExpenseStatus.CONFIRMED, ExpenseSource.MANUAL, now, now, null, null, 0);
+    }
+
+    public static Expense confirmedManual(ExpenseId id, HouseholdRef householdId, MemberRef createdByMemberId,
+            MemberRef payerMemberId, Money total, ExpenseDescription description, LocalDate expenseDate,
+            ExpenseSplit split, ExpenseCategoryId categoryId, Instant now) {
+        return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description,
+                expenseDate, split, categoryId, ExpenseStatus.CONFIRMED, ExpenseSource.MANUAL,
+                now, now, null, null, 0);
     }
 
     public static Expense rehydrate(ExpenseId id, HouseholdRef householdId, MemberRef createdByMemberId,
@@ -61,7 +71,15 @@ public final class Expense {
             ExpenseSplit split, ExpenseStatus status, ExpenseSource source, Instant createdAt,
             Instant updatedAt, VoidReason voidReason, Instant voidedAt, long version) {
         return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description,
-                expenseDate, split, status, source, createdAt, updatedAt, voidReason, voidedAt, version);
+                expenseDate, split, null, status, source, createdAt, updatedAt, voidReason, voidedAt, version);
+    }
+
+    public static Expense rehydrate(ExpenseId id, HouseholdRef householdId, MemberRef createdByMemberId,
+            MemberRef payerMemberId, Money total, ExpenseDescription description, LocalDate expenseDate,
+            ExpenseSplit split, ExpenseCategoryId categoryId, ExpenseStatus status, ExpenseSource source,
+            Instant createdAt, Instant updatedAt, VoidReason voidReason, Instant voidedAt, long version) {
+        return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description,
+                expenseDate, split, categoryId, status, source, createdAt, updatedAt, voidReason, voidedAt, version);
     }
 
     public void voidExpense(VoidReason reason, Instant now) {
@@ -72,6 +90,16 @@ public final class Expense {
         voidReason = Objects.requireNonNull(reason);
         voidedAt = Objects.requireNonNull(now);
         updatedAt = now;
+    }
+
+    public ExpenseReclassification reclassify(ExpenseCategoryId newCategoryId, Instant now) {
+        if (status == ExpenseStatus.DRAFT) throw new ExpenseStateException("A draft expense cannot be reclassified");
+        var change = new ExpenseReclassification(categoryId, newCategoryId);
+        if (!Objects.equals(categoryId, newCategoryId)) {
+            categoryId = newCategoryId;
+            updatedAt = Objects.requireNonNull(now);
+        }
+        return change;
     }
 
     private void validateLifecycle() {
@@ -91,6 +119,7 @@ public final class Expense {
     public ExpenseDescription description() { return description; }
     public LocalDate expenseDate() { return expenseDate; }
     public ExpenseSplit split() { return split; }
+    public ExpenseCategoryId categoryId() { return categoryId; }
     public ExpenseStatus status() { return status; }
     public ExpenseSource source() { return source; }
     public Instant createdAt() { return createdAt; }

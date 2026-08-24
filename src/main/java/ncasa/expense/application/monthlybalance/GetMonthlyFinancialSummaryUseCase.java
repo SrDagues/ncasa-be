@@ -17,6 +17,7 @@ public final class GetMonthlyFinancialSummaryUseCase {
         if(month==null) throw new IllegalArgumentException("Month is required");
         var household=new HouseholdRef(householdId); var context=access.getContext(household,actorAccountId);
         var rows=ledger.expenseTotals(household,month.atDay(1),month.atEndOfMonth());
+        var categoryRows=ledger.categoryExpenseTotals(household,month.atDay(1),month.atEndOfMonth());
         var byCurrency=new TreeMap<String,java.util.Map<java.util.UUID,ncasa.expense.application.port.out.ExpenseLedgerRow>>();
         rows.forEach(r->byCurrency.computeIfAbsent(r.currency(),ignored->new java.util.HashMap<>()).put(r.memberId().value(),r));
         var currencies=new ArrayList<MonthlyFinancialSummary.CurrencySummary>();
@@ -26,7 +27,11 @@ public final class GetMonthlyFinancialSummaryUseCase {
                 return new MonthlyFinancialSummary.MemberSummary(member.value(),paid,allocated,paid.subtract(allocated));
             }).toList();
             var total=members.stream().map(MonthlyFinancialSummary.MemberSummary::paid).reduce(BigDecimal.ZERO,BigDecimal::add);
-            currencies.add(new MonthlyFinancialSummary.CurrencySummary(entry.getKey(),total,members));
+            var categorySummaries=categoryRows.stream().filter(row->row.currency().equals(entry.getKey()))
+                    .sorted(Comparator.comparing((ncasa.expense.application.port.out.CategoryExpenseLedgerRow row)->row.categoryName()==null?"":row.categoryName(),String.CASE_INSENSITIVE_ORDER)
+                            .thenComparing(row->row.categoryId()==null?new java.util.UUID(0,0):row.categoryId()))
+                    .map(row->new MonthlyFinancialSummary.CategorySummary(row.categoryId(),row.categoryName(),row.total())).toList();
+            currencies.add(new MonthlyFinancialSummary.CurrencySummary(entry.getKey(),total,members,categorySummaries));
         }
         return new MonthlyFinancialSummary(householdId,month,List.copyOf(currencies));
     }

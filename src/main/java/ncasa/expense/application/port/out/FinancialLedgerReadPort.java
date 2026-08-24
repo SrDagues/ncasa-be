@@ -7,4 +7,6 @@ import ncasa.expense.domain.HouseholdRef;
 public interface FinancialLedgerReadPort {
     List<ExpenseLedgerRow> expenseTotals(HouseholdRef householdId, LocalDate fromInclusive, LocalDate toInclusive);
     List<SettlementLedgerRow> settlementTotals(HouseholdRef householdId, LocalDate toInclusive);
+    default List<CategoryExpenseLedgerRow> categoryExpenseTotals(HouseholdRef householdId,
+            LocalDate fromInclusive,LocalDate toInclusive){return List.of();}
 }

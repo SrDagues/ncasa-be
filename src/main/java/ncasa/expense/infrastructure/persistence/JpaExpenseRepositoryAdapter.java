@@ -40,7 +40,7 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepository {
             ExpenseStatus status, MemberRef payer, MemberRef participant, int page, int size) {
         var ids = repository.findPageIds(householdId.value(), from, to,
                 status == null ? null : status.name(), payer == null ? null : payer.value(),
-                participant == null ? null : participant.value(), PageRequest.of(page, size));
+                participant == null ? null : participant.value(),null,false,null, PageRequest.of(page, size));
         if (ids.isEmpty()) return new ExpensePageSlice(java.util.List.of(), ids.getTotalElements());
         Map<UUID, JpaExpenseEntity> entities = repository.findByIdIn(ids.getContent()).stream()
                 .collect(Collectors.toMap(JpaExpenseEntity::id, Function.identity()));
@@ -48,9 +48,22 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepository {
         return new ExpensePageSlice(ordered, ids.getTotalElements());
     }
 
+    @Override
+    public ExpensePageSlice findPage(HouseholdRef householdId,LocalDate from,LocalDate to,ExpenseStatus status,
+            MemberRef payer,MemberRef participant,ExpenseCategoryId category,boolean uncategorized,
+            ExpenseSplitType splitType,int page,int size){
+        var ids=repository.findPageIds(householdId.value(),from,to,status==null?null:status.name(),
+                payer==null?null:payer.value(),participant==null?null:participant.value(),category==null?null:category.value(),
+                uncategorized,splitType==null?null:splitType.name(),PageRequest.of(page,size));
+        if(ids.isEmpty())return new ExpensePageSlice(java.util.List.of(),ids.getTotalElements());
+        Map<UUID,JpaExpenseEntity> entities=repository.findByIdIn(ids.getContent()).stream().collect(Collectors.toMap(JpaExpenseEntity::id,Function.identity()));
+        return new ExpensePageSlice(ids.getContent().stream().map(entities::get).map(this::toDomain).toList(),ids.getTotalElements());
+    }
+
     private JpaExpenseEntity toEntity(Expense expense) {
         var entity = new JpaExpenseEntity(expense.id().value(), expense.householdId().value(),
-                expense.createdByMemberId().value(), expense.payerMemberId().value(), expense.description().value(),
+                expense.createdByMemberId().value(), expense.payerMemberId().value(),
+                expense.categoryId() == null ? null : expense.categoryId().value(), expense.description().value(),
                 expense.total().amount(), expense.total().currency(), expense.expenseDate(),
                 expense.split().type().name(), expense.status().name(), expense.source().name(),
                 expense.voidReason() == null ? null : expense.voidReason().value(), expense.createdAt(),
@@ -73,6 +86,7 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepository {
         return Expense.rehydrate(new ExpenseId(entity.id()), new HouseholdRef(entity.householdId()),
                 new MemberRef(entity.createdByMemberId()), new MemberRef(entity.payerMemberId()), total,
                 new ExpenseDescription(entity.description()), entity.expenseDate(), split,
+                entity.categoryId() == null ? null : new ExpenseCategoryId(entity.categoryId()),
                 ExpenseStatus.valueOf(entity.status()), ExpenseSource.valueOf(entity.source()), entity.createdAt(),
                 entity.updatedAt(), entity.voidReason() == null ? null : new VoidReason(entity.voidReason()),
                 entity.voidedAt(), entity.version());

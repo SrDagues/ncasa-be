@@ -39,4 +39,15 @@ public class JdbcFinancialLedgerAdapter implements FinancialLedgerReadPort {
             """;
         return jdbc.query(sql,(rs,n)->new SettlementLedgerRow(rs.getString("currency"),new MemberRef(rs.getObject("member_id",UUID.class)),rs.getBigDecimal("settled_out"),rs.getBigDecimal("settled_in")),household.value(),to,household.value(),to);
     }
+    @Override public List<CategoryExpenseLedgerRow> categoryExpenseTotals(HouseholdRef household,LocalDate from,LocalDate to){
+        String sql="""
+            select e.currency,e.category_id,c.name category_name,sum(e.amount) total
+              from expenses e left join expense_categories c on c.id=e.category_id
+             where e.household_id=? and e.status='CONFIRMED' and e.expense_date>=? and e.expense_date<=?
+             group by e.currency,e.category_id,c.name
+             order by e.currency,c.name,e.category_id
+            """;
+        return jdbc.query(sql,(rs,n)->new CategoryExpenseLedgerRow(rs.getString("currency"),rs.getObject("category_id",UUID.class),
+                rs.getString("category_name"),rs.getBigDecimal("total")),household.value(),from,to);
+    }
 }

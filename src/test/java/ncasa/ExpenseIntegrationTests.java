@@ -2,6 +2,7 @@ package ncasa;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -25,8 +26,13 @@ class ExpenseIntegrationTests {
 
     @BeforeEach
     void cleanDatabase() {
+        jdbc.update("DELETE FROM expense_classification_changes");
+        jdbc.update("DELETE FROM expense_draft_allocations");
+        jdbc.update("DELETE FROM expense_drafts");
         jdbc.update("DELETE FROM expense_allocations");
+        jdbc.update("DELETE FROM settlements");
         jdbc.update("DELETE FROM expenses");
+        jdbc.update("DELETE FROM expense_categories");
         jdbc.update("DELETE FROM household_invitations");
         jdbc.update("DELETE FROM household_members");
         jdbc.update("DELETE FROM households");
@@ -138,6 +144,49 @@ class ExpenseIntegrationTests {
     void shouldRejectExpenseEndpointsWithoutAuthentication() throws Exception {
         mvc.perform(get("/api/households/{id}/expenses", java.util.UUID.randomUUID()))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldManageCategoryConfirmPercentageDraftAndReclassifyExpense() throws Exception {
+        String token=register("stage2@example.com");JsonNode household=createHousehold(token);
+        String householdId=household.get("id").asString();String memberId=household.get("members").get(0).get("id").asString();
+        JsonNode category=json.readTree(mvc.perform(post("/api/households/{id}/expense-categories",householdId)
+                        .header("Authorization",bearer(token)).contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Food\"}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andReturn().getResponse().getContentAsString());
+        JsonNode draft=json.readTree(mvc.perform(post("/api/households/{id}/expense-drafts",householdId)
+                        .header("Authorization",bearer(token)))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("OPEN"))
+                .andReturn().getResponse().getContentAsString());
+        String update="""
+                {"description":"Dinner","amount":"10.00","currency":"EUR","expenseDate":"2026-08-24",
+                 "payerMemberId":"%s","categoryId":"%s","version":%s,
+                 "split":{"type":"PERCENTAGE","allocations":[{"memberId":"%s","percentage":"100.00"}]}}
+                """.formatted(memberId,category.get("id").asString(),draft.get("version").asLong(),memberId);
+        JsonNode updated=json.readTree(mvc.perform(put("/api/households/{id}/expense-drafts/{draftId}",householdId,draft.get("id").asString())
+                        .header("Authorization",bearer(token)).contentType(MediaType.APPLICATION_JSON).content(update))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.splitType").value("PERCENTAGE"))
+                .andReturn().getResponse().getContentAsString());
+        String confirmBody="{\"version\":"+updated.get("version").asLong()+"}";
+        JsonNode expense=json.readTree(mvc.perform(post("/api/households/{id}/expense-drafts/{draftId}/confirm",householdId,draft.get("id").asString())
+                        .header("Authorization",bearer(token)).contentType(MediaType.APPLICATION_JSON).content(confirmBody))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.splitType").value("PERCENTAGE"))
+                .andExpect(jsonPath("$.categoryId").value(category.get("id").asString()))
+                .andReturn().getResponse().getContentAsString());
+        mvc.perform(post("/api/households/{id}/expense-drafts/{draftId}/confirm",householdId,draft.get("id").asString())
+                        .header("Authorization",bearer(token)).contentType(MediaType.APPLICATION_JSON).content(confirmBody))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(expense.get("id").asString()));
+        mvc.perform(get("/api/households/{id}/financial-summary/monthly",householdId).header("Authorization",bearer(token)).param("month","2026-08"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.currencies[0].categories[0].name").value("Food"))
+                .andExpect(jsonPath("$.currencies[0].categories[0].total").value("10.0000"));
+        mvc.perform(post("/api/households/{id}/expenses/{expenseId}/reclassify",householdId,expense.get("id").asString())
+                        .header("Authorization",bearer(token)).contentType(MediaType.APPLICATION_JSON).content("{\"categoryId\":null,\"reason\":\"Correction\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.categoryId").doesNotExist());
+        mvc.perform(get("/api/households/{id}/expenses/{expenseId}/classification-history",householdId,expense.get("id").asString())
+                        .header("Authorization",bearer(token)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].reason").value("Correction"));
+        mvc.perform(get("/api/households/{id}/expenses",householdId).header("Authorization",bearer(token)).param("uncategorized","true"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
     }
 
     private JsonNode createHousehold(String token) throws Exception {

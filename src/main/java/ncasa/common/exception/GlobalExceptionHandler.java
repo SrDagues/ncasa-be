@@ -17,6 +17,10 @@ import ncasa.expense.application.ExpenseAccessDeniedException;
 import ncasa.expense.application.ExpenseNotFoundException;
 import ncasa.expense.application.SettlementNotFoundException;
 import ncasa.expense.application.SettlementConflictException;
+import ncasa.expense.application.CategoryConflictException;
+import ncasa.expense.application.CategoryNotFoundException;
+import ncasa.expense.application.DraftNotFoundException;
+import ncasa.expense.application.DraftConflictException;
 import ncasa.expense.domain.ExpenseRuleViolationException;
 import ncasa.expense.domain.ExpenseStateException;
 import ncasa.expense.domain.SettlementStateException;
@@ -73,7 +77,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({HouseholdNotFoundException.class, InvitationNotFoundException.class,
-            ExpenseNotFoundException.class, SettlementNotFoundException.class})
+            ExpenseNotFoundException.class, SettlementNotFoundException.class, CategoryNotFoundException.class,
+            DraftNotFoundException.class})
     ResponseEntity<ApiError> notFound(RuntimeException ex) {
         return response(HttpStatus.NOT_FOUND, ex.getMessage(), Map.of());
     }
@@ -88,7 +93,8 @@ public class GlobalExceptionHandler {
         return response(HttpStatus.CONFLICT, ex.getMessage(), Map.of());
     }
 
-    @ExceptionHandler({ExpenseStateException.class, SettlementStateException.class, SettlementConflictException.class})
+    @ExceptionHandler({ExpenseStateException.class, SettlementStateException.class, SettlementConflictException.class,
+            CategoryConflictException.class, DraftConflictException.class})
     ResponseEntity<ApiError> expenseConflict(RuntimeException ex) {
         return response(HttpStatus.CONFLICT, ex.getMessage(), Map.of());
     }

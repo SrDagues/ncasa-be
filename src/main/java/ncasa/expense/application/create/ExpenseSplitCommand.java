@@ -1,3 +1,3 @@
 package ncasa.expense.application.create;
 
-public sealed interface ExpenseSplitCommand permits EqualSplitCommand, ExactSplitCommand {}
+public sealed interface ExpenseSplitCommand permits EqualSplitCommand, ExactSplitCommand, PercentageSplitCommand {}

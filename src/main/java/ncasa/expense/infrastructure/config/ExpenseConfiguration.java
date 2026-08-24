@@ -2,9 +2,15 @@ package ncasa.expense.infrastructure.config;
 
 import java.time.Clock;
 import ncasa.expense.application.create.CreateExpenseUseCase;
+import ncasa.expense.application.category.*;
+import ncasa.expense.application.draft.*;
+import ncasa.expense.application.classification.*;
 import ncasa.expense.application.get.GetExpenseUseCase;
 import ncasa.expense.application.list.ListExpensesUseCase;
 import ncasa.expense.application.port.out.ExpenseRepository;
+import ncasa.expense.application.port.out.ExpenseCategoryRepository;
+import ncasa.expense.application.port.out.ExpenseDraftRepository;
+import ncasa.expense.application.port.out.ExpenseClassificationAuditRepository;
 import ncasa.expense.application.port.out.HouseholdExpenseAccessPort;
 import ncasa.expense.application.voidexpense.VoidExpenseUseCase;
 import ncasa.expense.application.debt.GetDebtSummaryUseCase;
@@ -23,14 +29,15 @@ public class ExpenseConfiguration {
     @Bean HouseholdExpenseAccessPort householdExpenseAccess(GetHouseholdMembershipContextUseCase memberships) {
         return new HouseholdExpenseAccessAdapter(memberships);
     }
-    @Bean CreateExpenseUseCase createExpense(ExpenseRepository r, HouseholdExpenseAccessPort h, Clock c) {
-        return new CreateExpenseUseCase(r, h, c);
+    @Bean CreateExpenseUseCase createExpense(ExpenseRepository r, HouseholdExpenseAccessPort h,
+            ExpenseCategoryRepository categories, Clock c) {
+        return new CreateExpenseUseCase(r, h, categories, c);
     }
     @Bean GetExpenseUseCase getExpense(ExpenseRepository r, HouseholdExpenseAccessPort h) {
         return new GetExpenseUseCase(r, h);
     }
-    @Bean ListExpensesUseCase listExpenses(ExpenseRepository r, HouseholdExpenseAccessPort h) {
-        return new ListExpensesUseCase(r, h);
+    @Bean ListExpensesUseCase listExpenses(ExpenseRepository r, HouseholdExpenseAccessPort h,ExpenseCategoryRepository categories) {
+        return new ListExpensesUseCase(r, h,categories);
     }
     @Bean VoidExpenseUseCase voidExpense(ExpenseRepository r, HouseholdExpenseAccessPort h, Clock c) {
         return new VoidExpenseUseCase(r, h, c);
@@ -42,4 +49,16 @@ public class ExpenseConfiguration {
     @Bean GetSettlementUseCase getSettlement(SettlementRepository r,HouseholdExpenseAccessPort h){return new GetSettlementUseCase(r,h);}
     @Bean ListSettlementsUseCase listSettlements(SettlementRepository r,HouseholdExpenseAccessPort h){return new ListSettlementsUseCase(r,h);}
     @Bean VoidSettlementUseCase voidSettlement(SettlementRepository r,HouseholdExpenseAccessPort h,Clock c){return new VoidSettlementUseCase(r,h,c);}
+    @Bean CreateExpenseCategoryUseCase createExpenseCategory(ExpenseCategoryRepository r,HouseholdExpenseAccessPort h,Clock c){return new CreateExpenseCategoryUseCase(r,h,c);}
+    @Bean RenameExpenseCategoryUseCase renameExpenseCategory(ExpenseCategoryRepository r,HouseholdExpenseAccessPort h,Clock c){return new RenameExpenseCategoryUseCase(r,h,c);}
+    @Bean ArchiveExpenseCategoryUseCase archiveExpenseCategory(ExpenseCategoryRepository r,HouseholdExpenseAccessPort h,Clock c){return new ArchiveExpenseCategoryUseCase(r,h,c);}
+    @Bean ListExpenseCategoriesUseCase listExpenseCategories(ExpenseCategoryRepository r,HouseholdExpenseAccessPort h){return new ListExpenseCategoriesUseCase(r,h);}
+    @Bean CreateExpenseDraftUseCase createExpenseDraft(ExpenseDraftRepository r,HouseholdExpenseAccessPort h,Clock c){return new CreateExpenseDraftUseCase(r,h,c);}
+    @Bean GetExpenseDraftUseCase getExpenseDraft(ExpenseDraftRepository r,HouseholdExpenseAccessPort h){return new GetExpenseDraftUseCase(r,h);}
+    @Bean ListExpenseDraftsUseCase listExpenseDrafts(ExpenseDraftRepository r,HouseholdExpenseAccessPort h){return new ListExpenseDraftsUseCase(r,h);}
+    @Bean UpdateExpenseDraftUseCase updateExpenseDraft(ExpenseDraftRepository r,HouseholdExpenseAccessPort h,ExpenseCategoryRepository categories,Clock c){return new UpdateExpenseDraftUseCase(r,h,categories,c);}
+    @Bean DiscardExpenseDraftUseCase discardExpenseDraft(ExpenseDraftRepository r,HouseholdExpenseAccessPort h,Clock c){return new DiscardExpenseDraftUseCase(r,h,c);}
+    @Bean ConfirmExpenseDraftUseCase confirmExpenseDraft(ExpenseDraftRepository d,ExpenseRepository e,ExpenseCategoryRepository categories,HouseholdExpenseAccessPort h,Clock c){return new ConfirmExpenseDraftUseCase(d,e,categories,h,c);}
+    @Bean ReclassifyExpenseUseCase reclassifyExpense(ExpenseRepository e,ExpenseCategoryRepository categories,ExpenseClassificationAuditRepository audit,HouseholdExpenseAccessPort h,Clock c){return new ReclassifyExpenseUseCase(e,categories,audit,h,c);}
+    @Bean ListExpenseClassificationHistoryUseCase classificationHistory(ExpenseRepository e,ExpenseClassificationAuditRepository audit,HouseholdExpenseAccessPort h){return new ListExpenseClassificationHistoryUseCase(e,audit,h);}
 }

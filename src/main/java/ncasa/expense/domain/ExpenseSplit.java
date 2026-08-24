@@ -7,7 +7,10 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public final class ExpenseSplit {
     private final ExpenseSplitType type;
@@ -37,6 +40,46 @@ public final class ExpenseSplit {
 
     public static ExpenseSplit exact(Money total, Collection<ExpenseAllocation> allocations) {
         return new ExpenseSplit(ExpenseSplitType.EXACT, total, allocations);
+    }
+
+    public static ExpenseSplit percentage(Money total, Collection<PercentageAllocation> percentages) {
+        if (percentages == null || percentages.isEmpty()) {
+            throw new ExpenseRuleViolationException("At least one percentage allocation is required");
+        }
+        var members = new HashSet<MemberRef>();
+        int percentageTotal = 0;
+        for (PercentageAllocation allocation : percentages) {
+            if (!members.add(allocation.memberId())) {
+                throw new ExpenseRuleViolationException("A member cannot appear twice in an expense split");
+            }
+            percentageTotal = Math.addExact(percentageTotal, allocation.percentage().basisPoints());
+        }
+        if (percentageTotal != Percentage.TOTAL_BASIS_POINTS) {
+            throw new ExpenseRuleViolationException("Percentages must add up to 100.00");
+        }
+
+        int scale = total.fractionDigits();
+        BigInteger totalUnits = total.amount().movePointRight(scale).toBigIntegerExact();
+        record Share(PercentageAllocation allocation, BigInteger units, BigInteger remainder) {}
+        var shares = percentages.stream().map(allocation -> {
+            BigInteger weighted = totalUnits.multiply(BigInteger.valueOf(allocation.percentage().basisPoints()));
+            BigInteger[] division = weighted.divideAndRemainder(BigInteger.valueOf(Percentage.TOTAL_BASIS_POINTS));
+            return new Share(allocation, division[0], division[1]);
+        }).toList();
+        BigInteger assigned = shares.stream().map(Share::units).reduce(BigInteger.ZERO, BigInteger::add);
+        int remaining = totalUnits.subtract(assigned).intValueExact();
+        var priority = shares.stream().sorted(Comparator.comparing(Share::remainder).reversed()
+                .thenComparing(share -> share.allocation().memberId())).toList();
+        Map<MemberRef, Integer> bonus = priority.stream().limit(remaining)
+                .map(share -> share.allocation().memberId())
+                .collect(Collectors.toMap(Function.identity(), ignored -> 1));
+        var allocations = shares.stream()
+                .sorted(Comparator.comparing(share -> share.allocation().memberId()))
+                .map(share -> new ExpenseAllocation(share.allocation().memberId(),
+                        new Money(new BigDecimal(share.units().add(BigInteger.valueOf(
+                                bonus.getOrDefault(share.allocation().memberId(), 0))), scale), total.currency())))
+                .toList();
+        return new ExpenseSplit(ExpenseSplitType.PERCENTAGE, total, allocations);
     }
 
     public static ExpenseSplit rehydrate(ExpenseSplitType type, Money total,

@@ -15,6 +15,7 @@ class JpaExpenseEntity {
     @Column(name = "household_id", nullable = false) private UUID householdId;
     @Column(name = "created_by_member_id", nullable = false) private UUID createdByMemberId;
     @Column(name = "payer_member_id", nullable = false) private UUID payerMemberId;
+    @Column(name = "category_id") private UUID categoryId;
     @Column(nullable = false, length = 240) private String description;
     @Column(nullable = false, precision = 19, scale = 4) private BigDecimal amount;
     @Column(nullable = false, length = 3) private String currency;
@@ -32,12 +33,12 @@ class JpaExpenseEntity {
 
     protected JpaExpenseEntity() {}
 
-    JpaExpenseEntity(UUID id, UUID householdId, UUID createdByMemberId, UUID payerMemberId,
+    JpaExpenseEntity(UUID id, UUID householdId, UUID createdByMemberId, UUID payerMemberId, UUID categoryId,
             String description, BigDecimal amount, String currency, LocalDate expenseDate,
             String splitType, String status, String source, String voidReason, Instant createdAt,
             Instant updatedAt, Instant voidedAt, long version) {
         this.id = id; this.householdId = householdId; this.createdByMemberId = createdByMemberId;
-        this.payerMemberId = payerMemberId; this.description = description; this.amount = amount;
+        this.payerMemberId = payerMemberId; this.categoryId = categoryId; this.description = description; this.amount = amount;
         this.currency = currency; this.expenseDate = expenseDate; this.splitType = splitType;
         this.status = status; this.source = source; this.voidReason = voidReason; this.createdAt = createdAt;
         this.updatedAt = updatedAt; this.voidedAt = voidedAt; this.version = version;
@@ -50,6 +51,7 @@ class JpaExpenseEntity {
     UUID householdId() { return householdId; }
     UUID createdByMemberId() { return createdByMemberId; }
     UUID payerMemberId() { return payerMemberId; }
+    UUID categoryId() { return categoryId; }
     String description() { return description; }
     BigDecimal amount() { return amount; }
     String currency() { return currency; }

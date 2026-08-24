@@ -22,17 +22,24 @@ interface SpringDataExpenseRepository extends JpaRepository<JpaExpenseEntity, UU
             + "and (:status is null or e.status = :status) "
             + "and (:payer is null or e.payerMemberId = :payer) "
             + "and (:participant is null or exists (select a.id from JpaExpenseAllocationEntity a where a.expense = e and a.memberId = :participant)) "
+            + "and (:categoryId is null or e.categoryId = :categoryId) "
+            + "and (:uncategorized = false or e.categoryId is null) "
+            + "and (:splitType is null or e.splitType = :splitType) "
             + "order by e.expenseDate desc, e.createdAt desc, e.id desc",
             countQuery = "select count(e) from JpaExpenseEntity e where e.householdId = :householdId "
                     + "and (:fromDate is null or e.expenseDate >= :fromDate) "
                     + "and (:toDate is null or e.expenseDate <= :toDate) "
                     + "and (:status is null or e.status = :status) "
                     + "and (:payer is null or e.payerMemberId = :payer) "
-                    + "and (:participant is null or exists (select a.id from JpaExpenseAllocationEntity a where a.expense = e and a.memberId = :participant))")
+                    + "and (:participant is null or exists (select a.id from JpaExpenseAllocationEntity a where a.expense = e and a.memberId = :participant)) "
+                    + "and (:categoryId is null or e.categoryId = :categoryId) "
+                    + "and (:uncategorized = false or e.categoryId is null) "
+                    + "and (:splitType is null or e.splitType = :splitType)")
     Page<UUID> findPageIds(@Param("householdId") UUID householdId,
             @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate,
             @Param("status") String status, @Param("payer") UUID payer,
-            @Param("participant") UUID participant, Pageable pageable);
+            @Param("participant") UUID participant,@Param("categoryId")UUID categoryId,
+            @Param("uncategorized")boolean uncategorized,@Param("splitType")String splitType,Pageable pageable);
 
     @EntityGraph(attributePaths = "allocations")
     List<JpaExpenseEntity> findByIdIn(Collection<UUID> ids);

@@ -1,3 +1,3 @@
 package ncasa.expense.domain;
 
-public enum ExpenseSplitType { EQUAL, EXACT }
+public enum ExpenseSplitType { EQUAL, EXACT, PERCENTAGE }
