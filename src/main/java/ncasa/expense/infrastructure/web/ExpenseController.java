@@ -18,6 +18,7 @@ import ncasa.expense.application.classification.*;
 import ncasa.expense.application.ExpenseClassificationView;
 import ncasa.expense.domain.ExpenseSplitType;
 import ncasa.expense.domain.ExpenseStatus;
+import ncasa.expense.domain.ExpenseSource;
 import ncasa.identityaccess.infrastructure.security.IdentityUserDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,9 +75,10 @@ public class ExpenseController {
             @RequestParam(required = false) UUID participantMemberId,
             @RequestParam(required=false) UUID categoryId,@RequestParam(defaultValue="false")boolean uncategorized,
             @RequestParam(required=false)ExpenseSplitType splitType,
+            @RequestParam(required=false)ExpenseSource source,@RequestParam(required=false)UUID planId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         return ExpensePageResponse.from(list.execute(new ListExpensesQuery(user.id(), householdId,
-                from, to, status, payerMemberId, participantMemberId,categoryId,uncategorized,splitType,page, size)));
+                from, to, status, payerMemberId, participantMemberId,categoryId,uncategorized,splitType,source,planId,page, size)));
     }
 
     @PostMapping("/{expenseId}/void")

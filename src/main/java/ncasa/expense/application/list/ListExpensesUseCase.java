@@ -38,7 +38,8 @@ public final class ListExpensesUseCase {
         if(category!=null&&(categories==null||categories.findByIdAndHousehold(category,household).isEmpty()))
             throw new ncasa.expense.application.CategoryNotFoundException("Expense category not found");
         var result = expenses.findPage(household, query.from(), query.to(), query.status(), payer, participant,
-                category,query.uncategorized(),query.splitType(),query.page(), query.size());
+                category,query.uncategorized(),query.splitType(),query.source(),
+                query.planId()==null?null:new ncasa.expense.domain.ExpensePlanId(query.planId()),query.page(), query.size());
         int totalPages = result.totalElements() == 0 ? 0
                 : (int) Math.ceil((double) result.totalElements() / query.size());
         return new ExpensePage(result.items().stream().map(ExpenseView::from).toList(), query.page(), query.size(),

@@ -16,6 +16,8 @@ public final class Expense {
     private ExpenseCategoryId categoryId;
     private ExpenseStatus status;
     private final ExpenseSource source;
+    private final ExpensePlanId sourcePlanId;
+    private final String occurrenceKey;
     private final Instant createdAt;
     private Instant updatedAt;
     private VoidReason voidReason;
@@ -24,7 +26,8 @@ public final class Expense {
 
     private Expense(ExpenseId id, HouseholdRef householdId, MemberRef createdByMemberId,
             MemberRef payerMemberId, Money total, ExpenseDescription description, LocalDate expenseDate,
-            ExpenseSplit split, ExpenseCategoryId categoryId, ExpenseStatus status, ExpenseSource source, Instant createdAt,
+            ExpenseSplit split, ExpenseCategoryId categoryId, ExpenseStatus status, ExpenseSource source,
+            ExpensePlanId sourcePlanId, String occurrenceKey, Instant createdAt,
             Instant updatedAt, VoidReason voidReason, Instant voidedAt, long version) {
         this.id = Objects.requireNonNull(id);
         this.householdId = Objects.requireNonNull(householdId);
@@ -42,6 +45,14 @@ public final class Expense {
         }
         this.status = Objects.requireNonNull(status);
         this.source = Objects.requireNonNull(source);
+        this.sourcePlanId = sourcePlanId;
+        this.occurrenceKey = occurrenceKey;
+        if ((source == ExpenseSource.MANUAL) != (sourcePlanId == null && occurrenceKey == null)) {
+            throw new ExpenseRuleViolationException("Expense source metadata is inconsistent");
+        }
+        if (source == ExpenseSource.PLAN && !expenseDate.toString().equals(occurrenceKey)) {
+            throw new ExpenseRuleViolationException("Occurrence key must match expense date");
+        }
         this.createdAt = Objects.requireNonNull(createdAt);
         this.updatedAt = Objects.requireNonNull(updatedAt);
         if (version < 0) throw new IllegalArgumentException("Version cannot be negative");
@@ -55,14 +66,22 @@ public final class Expense {
             MemberRef payerMemberId, Money total, ExpenseDescription description, LocalDate expenseDate,
             ExpenseSplit split, Instant now) {
         return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description,
-                expenseDate, split, null, ExpenseStatus.CONFIRMED, ExpenseSource.MANUAL, now, now, null, null, 0);
+                expenseDate, split, null, ExpenseStatus.CONFIRMED, ExpenseSource.MANUAL, null, null, now, now, null, null, 0);
     }
 
     public static Expense confirmedManual(ExpenseId id, HouseholdRef householdId, MemberRef createdByMemberId,
             MemberRef payerMemberId, Money total, ExpenseDescription description, LocalDate expenseDate,
             ExpenseSplit split, ExpenseCategoryId categoryId, Instant now) {
         return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description,
-                expenseDate, split, categoryId, ExpenseStatus.CONFIRMED, ExpenseSource.MANUAL,
+                expenseDate, split, categoryId, ExpenseStatus.CONFIRMED, ExpenseSource.MANUAL, null, null,
+                now, now, null, null, 0);
+    }
+
+    public static Expense confirmedFromPlan(ExpenseId id, ExpensePlanId planId, HouseholdRef householdId,
+            MemberRef createdByMemberId, MemberRef payerMemberId, Money total, ExpenseDescription description,
+            LocalDate expenseDate, ExpenseSplit split, ExpenseCategoryId categoryId, Instant now) {
+        return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description, expenseDate,
+                split, categoryId, ExpenseStatus.CONFIRMED, ExpenseSource.PLAN, planId, expenseDate.toString(),
                 now, now, null, null, 0);
     }
 
@@ -71,7 +90,7 @@ public final class Expense {
             ExpenseSplit split, ExpenseStatus status, ExpenseSource source, Instant createdAt,
             Instant updatedAt, VoidReason voidReason, Instant voidedAt, long version) {
         return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description,
-                expenseDate, split, null, status, source, createdAt, updatedAt, voidReason, voidedAt, version);
+                expenseDate, split, null, status, source, null, null, createdAt, updatedAt, voidReason, voidedAt, version);
     }
 
     public static Expense rehydrate(ExpenseId id, HouseholdRef householdId, MemberRef createdByMemberId,
@@ -79,7 +98,17 @@ public final class Expense {
             ExpenseSplit split, ExpenseCategoryId categoryId, ExpenseStatus status, ExpenseSource source,
             Instant createdAt, Instant updatedAt, VoidReason voidReason, Instant voidedAt, long version) {
         return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description,
-                expenseDate, split, categoryId, status, source, createdAt, updatedAt, voidReason, voidedAt, version);
+                expenseDate, split, categoryId, status, source, null, null, createdAt, updatedAt, voidReason, voidedAt, version);
+    }
+
+    public static Expense rehydrate(ExpenseId id, HouseholdRef householdId, MemberRef createdByMemberId,
+            MemberRef payerMemberId, Money total, ExpenseDescription description, LocalDate expenseDate,
+            ExpenseSplit split, ExpenseCategoryId categoryId, ExpenseStatus status, ExpenseSource source,
+            ExpensePlanId sourcePlanId, String occurrenceKey, Instant createdAt, Instant updatedAt,
+            VoidReason voidReason, Instant voidedAt, long version) {
+        return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description, expenseDate,
+                split, categoryId, status, source, sourcePlanId, occurrenceKey, createdAt, updatedAt,
+                voidReason, voidedAt, version);
     }
 
     public void voidExpense(VoidReason reason, Instant now) {
@@ -122,6 +151,8 @@ public final class Expense {
     public ExpenseCategoryId categoryId() { return categoryId; }
     public ExpenseStatus status() { return status; }
     public ExpenseSource source() { return source; }
+    public ExpensePlanId sourcePlanId() { return sourcePlanId; }
+    public String occurrenceKey() { return occurrenceKey; }
     public Instant createdAt() { return createdAt; }
     public Instant updatedAt() { return updatedAt; }
     public VoidReason voidReason() { return voidReason; }

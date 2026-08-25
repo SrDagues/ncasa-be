@@ -10,12 +10,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import ncasa.expense.application.port.out.ExpensePageSlice;
 import ncasa.expense.application.port.out.ExpenseRepository;
+import ncasa.expense.application.port.out.ExpenseOccurrenceRepository;
 import ncasa.expense.domain.*;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class JpaExpenseRepositoryAdapter implements ExpenseRepository {
+public class JpaExpenseRepositoryAdapter implements ExpenseRepository, ExpenseOccurrenceRepository {
     private final SpringDataExpenseRepository repository;
     public JpaExpenseRepositoryAdapter(SpringDataExpenseRepository repository) { this.repository = repository; }
 
@@ -23,6 +24,8 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepository {
     public Expense save(Expense expense) {
         return toDomain(repository.saveAndFlush(toEntity(expense)));
     }
+
+    @Override public boolean exists(ExpensePlanId planId,String occurrenceKey){return repository.existsBySourcePlanIdAndOccurrenceKey(planId.value(),occurrenceKey);}
 
     @Override
     public Optional<Expense> findByIdAndHousehold(ExpenseId id, HouseholdRef householdId) {
@@ -40,7 +43,7 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepository {
             ExpenseStatus status, MemberRef payer, MemberRef participant, int page, int size) {
         var ids = repository.findPageIds(householdId.value(), from, to,
                 status == null ? null : status.name(), payer == null ? null : payer.value(),
-                participant == null ? null : participant.value(),null,false,null, PageRequest.of(page, size));
+                participant == null ? null : participant.value(),null,false,null,null,null, PageRequest.of(page, size));
         if (ids.isEmpty()) return new ExpensePageSlice(java.util.List.of(), ids.getTotalElements());
         Map<UUID, JpaExpenseEntity> entities = repository.findByIdIn(ids.getContent()).stream()
                 .collect(Collectors.toMap(JpaExpenseEntity::id, Function.identity()));
@@ -54,7 +57,18 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepository {
             ExpenseSplitType splitType,int page,int size){
         var ids=repository.findPageIds(householdId.value(),from,to,status==null?null:status.name(),
                 payer==null?null:payer.value(),participant==null?null:participant.value(),category==null?null:category.value(),
-                uncategorized,splitType==null?null:splitType.name(),PageRequest.of(page,size));
+                uncategorized,splitType==null?null:splitType.name(),null,null,PageRequest.of(page,size));
+        if(ids.isEmpty())return new ExpensePageSlice(java.util.List.of(),ids.getTotalElements());
+        Map<UUID,JpaExpenseEntity> entities=repository.findByIdIn(ids.getContent()).stream().collect(Collectors.toMap(JpaExpenseEntity::id,Function.identity()));
+        return new ExpensePageSlice(ids.getContent().stream().map(entities::get).map(this::toDomain).toList(),ids.getTotalElements());
+    }
+
+    @Override public ExpensePageSlice findPage(HouseholdRef householdId,LocalDate from,LocalDate to,ExpenseStatus status,
+            MemberRef payer,MemberRef participant,ExpenseCategoryId category,boolean uncategorized,
+            ExpenseSplitType splitType,ExpenseSource source,ExpensePlanId planId,int page,int size){
+        var ids=repository.findPageIds(householdId.value(),from,to,status==null?null:status.name(),
+                payer==null?null:payer.value(),participant==null?null:participant.value(),category==null?null:category.value(),
+                uncategorized,splitType==null?null:splitType.name(),source==null?null:source.name(),planId==null?null:planId.value(),PageRequest.of(page,size));
         if(ids.isEmpty())return new ExpensePageSlice(java.util.List.of(),ids.getTotalElements());
         Map<UUID,JpaExpenseEntity> entities=repository.findByIdIn(ids.getContent()).stream().collect(Collectors.toMap(JpaExpenseEntity::id,Function.identity()));
         return new ExpensePageSlice(ids.getContent().stream().map(entities::get).map(this::toDomain).toList(),ids.getTotalElements());
@@ -66,6 +80,7 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepository {
                 expense.categoryId() == null ? null : expense.categoryId().value(), expense.description().value(),
                 expense.total().amount(), expense.total().currency(), expense.expenseDate(),
                 expense.split().type().name(), expense.status().name(), expense.source().name(),
+                expense.sourcePlanId()==null?null:expense.sourcePlanId().value(), expense.occurrenceKey(),
                 expense.voidReason() == null ? null : expense.voidReason().value(), expense.createdAt(),
                 expense.updatedAt(), expense.voidedAt(), expense.version());
         expense.split().allocations().stream()
@@ -87,7 +102,8 @@ public class JpaExpenseRepositoryAdapter implements ExpenseRepository {
                 new MemberRef(entity.createdByMemberId()), new MemberRef(entity.payerMemberId()), total,
                 new ExpenseDescription(entity.description()), entity.expenseDate(), split,
                 entity.categoryId() == null ? null : new ExpenseCategoryId(entity.categoryId()),
-                ExpenseStatus.valueOf(entity.status()), ExpenseSource.valueOf(entity.source()), entity.createdAt(),
+                ExpenseStatus.valueOf(entity.status()), ExpenseSource.valueOf(entity.source()),
+                entity.sourcePlanId()==null?null:new ExpensePlanId(entity.sourcePlanId()), entity.occurrenceKey(), entity.createdAt(),
                 entity.updatedAt(), entity.voidReason() == null ? null : new VoidReason(entity.voidReason()),
                 entity.voidedAt(), entity.version());
     }

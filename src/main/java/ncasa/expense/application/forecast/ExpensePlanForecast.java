@@ -1,0 +1,3 @@
+package ncasa.expense.application.forecast;
+import java.math.BigDecimal;import java.time.LocalDate;import java.util.*;
+public record ExpensePlanForecast(UUID householdId,LocalDate from,LocalDate to,List<CurrencyTotal> currencies,List<Occurrence> occurrences){public ExpensePlanForecast{currencies=List.copyOf(currencies);occurrences=List.copyOf(occurrences);}public record CurrencyTotal(String currency,BigDecimal total){}public record Occurrence(UUID planId,String occurrenceKey,LocalDate occurrenceDate,String description,BigDecimal amount,String currency,UUID payerMemberId,UUID categoryId,List<Allocation> allocations,boolean lastOccurrence){public Occurrence{allocations=List.copyOf(allocations);}}public record Allocation(UUID memberId,BigDecimal amount){}}

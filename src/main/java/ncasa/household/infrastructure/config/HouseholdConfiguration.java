@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @EnableConfigurationProperties(HouseholdInvitationProperties.class)
 public class HouseholdConfiguration {
+    @Bean GetHouseholdStateForExpensePlansUseCase householdStateForExpensePlans(HouseholdRepository r){return new GetHouseholdStateForExpensePlansUseCase(r);}
     @Bean HouseholdViewAssembler householdViews(AccountDirectoryPort accounts) { return new HouseholdViewAssembler(accounts); }
     @Bean CreateHouseholdUseCase createHousehold(HouseholdRepository r, Clock c, HouseholdViewAssembler v) { return new CreateHouseholdUseCase(r, c, v); }
     @Bean GetHouseholdUseCase getHousehold(HouseholdRepository r, HouseholdViewAssembler v) { return new GetHouseholdUseCase(r, v); }

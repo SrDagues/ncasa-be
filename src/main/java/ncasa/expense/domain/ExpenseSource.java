@@ -1,3 +1,3 @@
 package ncasa.expense.domain;
 
-public enum ExpenseSource { MANUAL }
+public enum ExpenseSource { MANUAL, PLAN }

@@ -7,6 +7,8 @@ import ncasa.expense.domain.ExpenseId;
 import ncasa.expense.domain.ExpenseStatus;
 import ncasa.expense.domain.ExpenseCategoryId;
 import ncasa.expense.domain.ExpenseSplitType;
+import ncasa.expense.domain.ExpenseSource;
+import ncasa.expense.domain.ExpensePlanId;
 import ncasa.expense.domain.HouseholdRef;
 import ncasa.expense.domain.MemberRef;
 
@@ -25,5 +27,11 @@ public interface ExpenseRepository {
             ExpenseSplitType splitType,int page,int size){
         if(category!=null||uncategorized||splitType!=null)throw new UnsupportedOperationException("Classification filters are not supported");
         return findPage(householdId,from,to,status,payer,participant,page,size);
+    }
+    default ExpensePageSlice findPage(HouseholdRef householdId,LocalDate from,LocalDate to,ExpenseStatus status,
+            MemberRef payer,MemberRef participant,ExpenseCategoryId category,boolean uncategorized,
+            ExpenseSplitType splitType,ExpenseSource source,ExpensePlanId planId,int page,int size){
+        if(source!=null||planId!=null)throw new UnsupportedOperationException("Plan filters are not supported");
+        return findPage(householdId,from,to,status,payer,participant,category,uncategorized,splitType,page,size);
     }
 }

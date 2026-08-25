@@ -13,7 +13,7 @@ import ncasa.expense.domain.ExpenseStatus;
 public record ExpenseView(UUID id, UUID householdId, UUID createdByMemberId, UUID payerMemberId, UUID categoryId,
         BigDecimal amount, String currency, String description, LocalDate expenseDate,
         ExpenseSplitType splitType, List<AllocationView> allocations, ExpenseStatus status,
-        ExpenseSource source, String voidReason, Instant createdAt, Instant updatedAt, Instant voidedAt,
+        ExpenseSource source, UUID sourcePlanId, String occurrenceKey, String voidReason, Instant createdAt, Instant updatedAt, Instant voidedAt,
         long version) {
     public record AllocationView(UUID memberId, BigDecimal amount) {}
 
@@ -26,6 +26,7 @@ public record ExpenseView(UUID id, UUID householdId, UUID createdByMemberId, UUI
                 expense.categoryId() == null ? null : expense.categoryId().value(),
                 expense.total().amount(), expense.total().currency(), expense.description().value(),
                 expense.expenseDate(), expense.split().type(), allocations, expense.status(), expense.source(),
+                expense.sourcePlanId() == null ? null : expense.sourcePlanId().value(), expense.occurrenceKey(),
                 expense.voidReason() == null ? null : expense.voidReason().value(), expense.createdAt(),
                 expense.updatedAt(), expense.voidedAt(), expense.version());
     }

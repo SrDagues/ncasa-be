@@ -12,7 +12,7 @@ import ncasa.expense.domain.ExpenseStatus;
 public record ExpenseResponse(UUID id, UUID householdId, UUID createdByMemberId, UUID payerMemberId, UUID categoryId,
         String amount, String currency, String description, LocalDate expenseDate,
         ExpenseSplitType splitType, List<AllocationResponse> allocations, ExpenseStatus status,
-        ExpenseSource source, String voidReason, Instant createdAt, Instant updatedAt, Instant voidedAt,
+        ExpenseSource source, UUID sourcePlanId, String occurrenceKey, String voidReason, Instant createdAt, Instant updatedAt, Instant voidedAt,
         long version) {
     public record AllocationResponse(UUID memberId, String amount) {}
 
@@ -21,7 +21,7 @@ public record ExpenseResponse(UUID id, UUID householdId, UUID createdByMemberId,
                 .map(item -> new AllocationResponse(item.memberId(), item.amount().toPlainString())).toList();
         return new ExpenseResponse(view.id(), view.householdId(), view.createdByMemberId(), view.payerMemberId(), view.categoryId(),
                 view.amount().toPlainString(), view.currency(), view.description(), view.expenseDate(),
-                view.splitType(), allocations, view.status(), view.source(), view.voidReason(), view.createdAt(),
+                view.splitType(), allocations, view.status(), view.source(), view.sourcePlanId(), view.occurrenceKey(), view.voidReason(), view.createdAt(),
                 view.updatedAt(), view.voidedAt(), view.version());
     }
 }

@@ -23,6 +23,8 @@ class JpaExpenseEntity {
     @Column(name = "split_type", nullable = false, length = 20) private String splitType;
     @Column(nullable = false, length = 20) private String status;
     @Column(nullable = false, length = 20) private String source;
+    @Column(name = "source_plan_id") private UUID sourcePlanId;
+    @Column(name = "occurrence_key", length = 10) private String occurrenceKey;
     @Column(name = "void_reason", length = 500) private String voidReason;
     @Column(name = "created_at", nullable = false, updatable = false) private Instant createdAt;
     @Column(name = "updated_at", nullable = false) private Instant updatedAt;
@@ -35,12 +37,14 @@ class JpaExpenseEntity {
 
     JpaExpenseEntity(UUID id, UUID householdId, UUID createdByMemberId, UUID payerMemberId, UUID categoryId,
             String description, BigDecimal amount, String currency, LocalDate expenseDate,
-            String splitType, String status, String source, String voidReason, Instant createdAt,
+            String splitType, String status, String source, UUID sourcePlanId, String occurrenceKey,
+            String voidReason, Instant createdAt,
             Instant updatedAt, Instant voidedAt, long version) {
         this.id = id; this.householdId = householdId; this.createdByMemberId = createdByMemberId;
         this.payerMemberId = payerMemberId; this.categoryId = categoryId; this.description = description; this.amount = amount;
         this.currency = currency; this.expenseDate = expenseDate; this.splitType = splitType;
-        this.status = status; this.source = source; this.voidReason = voidReason; this.createdAt = createdAt;
+        this.status = status; this.source = source; this.sourcePlanId=sourcePlanId;this.occurrenceKey=occurrenceKey;
+        this.voidReason = voidReason; this.createdAt = createdAt;
         this.updatedAt = updatedAt; this.voidedAt = voidedAt; this.version = version;
     }
 
@@ -59,6 +63,8 @@ class JpaExpenseEntity {
     String splitType() { return splitType; }
     String status() { return status; }
     String source() { return source; }
+    UUID sourcePlanId() { return sourcePlanId; }
+    String occurrenceKey() { return occurrenceKey; }
     String voidReason() { return voidReason; }
     Instant createdAt() { return createdAt; }
     Instant updatedAt() { return updatedAt; }
