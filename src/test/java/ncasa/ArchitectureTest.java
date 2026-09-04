@@ -30,4 +30,11 @@ class ArchitectureTest {
     static final ArchRule expense_does_not_reach_household_infrastructure = noClasses()
             .that().resideInAnyPackage("..expense..")
             .should().dependOnClassesThat().resideInAnyPackage("..household.infrastructure..");
+
+    @ArchTest
+    static final ArchRule notification_domain_is_isolated = noClasses()
+            .that().resideInAnyPackage("..notification.domain..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "..expense..", "..household..", "..identityaccess..", "..common..",
+                    "org.springframework..", "jakarta.persistence..");
 }

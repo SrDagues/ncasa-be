@@ -79,6 +79,7 @@ public class ExpenseConfiguration {
     @Bean ListExpenseClassificationHistoryUseCase classificationHistory(ExpenseRepository e,ExpenseClassificationAuditRepository audit,HouseholdExpenseAccessPort h){return new ListExpenseClassificationHistoryUseCase(e,audit,h);}
     @Bean ExpensePlanHouseholdStatePort expensePlanHouseholdState(GetHouseholdStateForExpensePlansUseCase h,ExpenseCategoryRepository c){return new ExpensePlanHouseholdStateAdapter(h,c);}
     @Bean CreateExpensePlanUseCase createExpensePlan(ExpensePlanRepository p,HouseholdExpenseAccessPort h,ExpenseCategoryRepository c,TransactionalOutboxPort o,Clock k){return new CreateExpensePlanUseCase(p,h,c,o,k);}
+    @Bean GetExpensePlanNotificationContextUseCase expensePlanNotificationContext(ExpensePlanRepository p){return new GetExpensePlanNotificationContextUseCase(p);}
     @Bean GetExpensePlanUseCase getExpensePlan(ExpensePlanRepository p,HouseholdExpenseAccessPort h){return new GetExpensePlanUseCase(p,h);}
     @Bean ListExpensePlansUseCase listExpensePlans(ExpensePlanRepository p,HouseholdExpenseAccessPort h){return new ListExpensePlansUseCase(p,h);}
     @Bean ExpensePlanLifecycleUseCase expensePlanLifecycle(ExpensePlanRepository p,HouseholdExpenseAccessPort h,TransactionalOutboxPort o,Clock c){return new ExpensePlanLifecycleUseCase(p,h,o,c);}

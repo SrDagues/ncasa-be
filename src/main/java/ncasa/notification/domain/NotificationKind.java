@@ -1,0 +1,7 @@
+package ncasa.notification.domain;
+
+public enum NotificationKind {
+    EXPENSE_PLAN_OCCURRENCE_APPROACHING,
+    EXPENSE_PLAN_LAST_INSTALLMENT_APPROACHING,
+    EXPENSE_PLAN_ATTENTION_REQUIRED
+}
