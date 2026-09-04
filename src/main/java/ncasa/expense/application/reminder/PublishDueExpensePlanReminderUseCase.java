@@ -1,0 +1,3 @@
+package ncasa.expense.application.reminder;
+import java.time.Clock;import ncasa.expense.application.port.out.*;import ncasa.expense.domain.*;
+public final class PublishDueExpensePlanReminderUseCase{private final ExpensePlanRepository plans;private final TransactionalOutboxPort outbox;private final Clock clock;public PublishDueExpensePlanReminderUseCase(ExpensePlanRepository p,TransactionalOutboxPort o,Clock c){plans=p;outbox=o;clock=c;}public void execute(ExpensePlanId id){var plan=plans.findByIdForUpdate(id).orElseThrow();if(plan.status()!=ExpensePlanStatus.ACTIVE||plan.nextReminderAt()==null||plan.nextReminderAt().isAfter(clock.instant()))return;plan.reminderPublished(clock.instant());plans.save(plan);outbox.append(plan.id(),plan.pullEvents());}}

@@ -1,0 +1,3 @@
+package ncasa.expense.application.plan;
+import java.util.UUID;import ncasa.expense.application.*;import ncasa.expense.application.port.out.*;import ncasa.expense.domain.*;
+public final class GetExpensePlanUseCase{private final ExpensePlanRepository plans;private final HouseholdExpenseAccessPort access;public GetExpensePlanUseCase(ExpensePlanRepository p,HouseholdExpenseAccessPort a){plans=p;access=a;}public ExpensePlanView execute(Long actor,UUID householdId,UUID planId){var h=new HouseholdRef(householdId);access.getContext(h,actor);return ExpensePlanView.from(plans.findByIdAndHousehold(new ExpensePlanId(planId),h).orElseThrow(ExpensePlanNotFoundException::new));}}

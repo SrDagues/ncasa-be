@@ -1,0 +1,161 @@
+package ncasa.expense.domain;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.Objects;
+
+public final class Expense {
+    private final ExpenseId id;
+    private final HouseholdRef householdId;
+    private final MemberRef createdByMemberId;
+    private final MemberRef payerMemberId;
+    private final Money total;
+    private final ExpenseDescription description;
+    private final LocalDate expenseDate;
+    private final ExpenseSplit split;
+    private ExpenseCategoryId categoryId;
+    private ExpenseStatus status;
+    private final ExpenseSource source;
+    private final ExpensePlanId sourcePlanId;
+    private final String occurrenceKey;
+    private final Instant createdAt;
+    private Instant updatedAt;
+    private VoidReason voidReason;
+    private Instant voidedAt;
+    private final long version;
+
+    private Expense(ExpenseId id, HouseholdRef householdId, MemberRef createdByMemberId,
+            MemberRef payerMemberId, Money total, ExpenseDescription description, LocalDate expenseDate,
+            ExpenseSplit split, ExpenseCategoryId categoryId, ExpenseStatus status, ExpenseSource source,
+            ExpensePlanId sourcePlanId, String occurrenceKey, Instant createdAt,
+            Instant updatedAt, VoidReason voidReason, Instant voidedAt, long version) {
+        this.id = Objects.requireNonNull(id);
+        this.householdId = Objects.requireNonNull(householdId);
+        this.createdByMemberId = Objects.requireNonNull(createdByMemberId);
+        this.payerMemberId = Objects.requireNonNull(payerMemberId);
+        this.total = Objects.requireNonNull(total);
+        if (!total.isPositive()) throw new ExpenseRuleViolationException("Expense total must be positive");
+        this.description = Objects.requireNonNull(description);
+        this.expenseDate = Objects.requireNonNull(expenseDate);
+        this.split = Objects.requireNonNull(split);
+        this.categoryId = categoryId;
+        total.requireSameCurrency(split.total());
+        if (total.amount().compareTo(split.total().amount()) != 0) {
+            throw new ExpenseRuleViolationException("Expense split total must match expense total");
+        }
+        this.status = Objects.requireNonNull(status);
+        this.source = Objects.requireNonNull(source);
+        this.sourcePlanId = sourcePlanId;
+        this.occurrenceKey = occurrenceKey;
+        if ((source == ExpenseSource.MANUAL) != (sourcePlanId == null && occurrenceKey == null)) {
+            throw new ExpenseRuleViolationException("Expense source metadata is inconsistent");
+        }
+        if (source == ExpenseSource.PLAN && !expenseDate.toString().equals(occurrenceKey)) {
+            throw new ExpenseRuleViolationException("Occurrence key must match expense date");
+        }
+        this.createdAt = Objects.requireNonNull(createdAt);
+        this.updatedAt = Objects.requireNonNull(updatedAt);
+        if (version < 0) throw new IllegalArgumentException("Version cannot be negative");
+        this.version = version;
+        this.voidReason = voidReason;
+        this.voidedAt = voidedAt;
+        validateLifecycle();
+    }
+
+    public static Expense confirmedManual(ExpenseId id, HouseholdRef householdId, MemberRef createdByMemberId,
+            MemberRef payerMemberId, Money total, ExpenseDescription description, LocalDate expenseDate,
+            ExpenseSplit split, Instant now) {
+        return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description,
+                expenseDate, split, null, ExpenseStatus.CONFIRMED, ExpenseSource.MANUAL, null, null, now, now, null, null, 0);
+    }
+
+    public static Expense confirmedManual(ExpenseId id, HouseholdRef householdId, MemberRef createdByMemberId,
+            MemberRef payerMemberId, Money total, ExpenseDescription description, LocalDate expenseDate,
+            ExpenseSplit split, ExpenseCategoryId categoryId, Instant now) {
+        return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description,
+                expenseDate, split, categoryId, ExpenseStatus.CONFIRMED, ExpenseSource.MANUAL, null, null,
+                now, now, null, null, 0);
+    }
+
+    public static Expense confirmedFromPlan(ExpenseId id, ExpensePlanId planId, HouseholdRef householdId,
+            MemberRef createdByMemberId, MemberRef payerMemberId, Money total, ExpenseDescription description,
+            LocalDate expenseDate, ExpenseSplit split, ExpenseCategoryId categoryId, Instant now) {
+        return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description, expenseDate,
+                split, categoryId, ExpenseStatus.CONFIRMED, ExpenseSource.PLAN, planId, expenseDate.toString(),
+                now, now, null, null, 0);
+    }
+
+    public static Expense rehydrate(ExpenseId id, HouseholdRef householdId, MemberRef createdByMemberId,
+            MemberRef payerMemberId, Money total, ExpenseDescription description, LocalDate expenseDate,
+            ExpenseSplit split, ExpenseStatus status, ExpenseSource source, Instant createdAt,
+            Instant updatedAt, VoidReason voidReason, Instant voidedAt, long version) {
+        return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description,
+                expenseDate, split, null, status, source, null, null, createdAt, updatedAt, voidReason, voidedAt, version);
+    }
+
+    public static Expense rehydrate(ExpenseId id, HouseholdRef householdId, MemberRef createdByMemberId,
+            MemberRef payerMemberId, Money total, ExpenseDescription description, LocalDate expenseDate,
+            ExpenseSplit split, ExpenseCategoryId categoryId, ExpenseStatus status, ExpenseSource source,
+            Instant createdAt, Instant updatedAt, VoidReason voidReason, Instant voidedAt, long version) {
+        return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description,
+                expenseDate, split, categoryId, status, source, null, null, createdAt, updatedAt, voidReason, voidedAt, version);
+    }
+
+    public static Expense rehydrate(ExpenseId id, HouseholdRef householdId, MemberRef createdByMemberId,
+            MemberRef payerMemberId, Money total, ExpenseDescription description, LocalDate expenseDate,
+            ExpenseSplit split, ExpenseCategoryId categoryId, ExpenseStatus status, ExpenseSource source,
+            ExpensePlanId sourcePlanId, String occurrenceKey, Instant createdAt, Instant updatedAt,
+            VoidReason voidReason, Instant voidedAt, long version) {
+        return new Expense(id, householdId, createdByMemberId, payerMemberId, total, description, expenseDate,
+                split, categoryId, status, source, sourcePlanId, occurrenceKey, createdAt, updatedAt,
+                voidReason, voidedAt, version);
+    }
+
+    public void voidExpense(VoidReason reason, Instant now) {
+        if (status != ExpenseStatus.CONFIRMED) {
+            throw new ExpenseStateException("Only a confirmed expense can be voided");
+        }
+        status = ExpenseStatus.VOIDED;
+        voidReason = Objects.requireNonNull(reason);
+        voidedAt = Objects.requireNonNull(now);
+        updatedAt = now;
+    }
+
+    public ExpenseReclassification reclassify(ExpenseCategoryId newCategoryId, Instant now) {
+        if (status == ExpenseStatus.DRAFT) throw new ExpenseStateException("A draft expense cannot be reclassified");
+        var change = new ExpenseReclassification(categoryId, newCategoryId);
+        if (!Objects.equals(categoryId, newCategoryId)) {
+            categoryId = newCategoryId;
+            updatedAt = Objects.requireNonNull(now);
+        }
+        return change;
+    }
+
+    private void validateLifecycle() {
+        if (status == ExpenseStatus.VOIDED && (voidReason == null || voidedAt == null)) {
+            throw new ExpenseRuleViolationException("A voided expense requires reason and timestamp");
+        }
+        if (status != ExpenseStatus.VOIDED && (voidReason != null || voidedAt != null)) {
+            throw new ExpenseRuleViolationException("Only a voided expense can have void details");
+        }
+    }
+
+    public ExpenseId id() { return id; }
+    public HouseholdRef householdId() { return householdId; }
+    public MemberRef createdByMemberId() { return createdByMemberId; }
+    public MemberRef payerMemberId() { return payerMemberId; }
+    public Money total() { return total; }
+    public ExpenseDescription description() { return description; }
+    public LocalDate expenseDate() { return expenseDate; }
+    public ExpenseSplit split() { return split; }
+    public ExpenseCategoryId categoryId() { return categoryId; }
+    public ExpenseStatus status() { return status; }
+    public ExpenseSource source() { return source; }
+    public ExpensePlanId sourcePlanId() { return sourcePlanId; }
+    public String occurrenceKey() { return occurrenceKey; }
+    public Instant createdAt() { return createdAt; }
+    public Instant updatedAt() { return updatedAt; }
+    public VoidReason voidReason() { return voidReason; }
+    public Instant voidedAt() { return voidedAt; }
+    public long version() { return version; }
+}

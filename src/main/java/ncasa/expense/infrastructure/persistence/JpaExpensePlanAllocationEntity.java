@@ -1,0 +1,3 @@
+package ncasa.expense.infrastructure.persistence;
+import jakarta.persistence.*;import java.math.BigDecimal;import java.util.UUID;
+@Entity @Table(name="expense_plan_allocations") class JpaExpensePlanAllocationEntity{@Id UUID id;@ManyToOne(fetch=FetchType.LAZY)@JoinColumn(name="plan_id",nullable=false)JpaExpensePlanEntity plan;@Column(name="member_id",nullable=false)UUID memberId;@Column(precision=19,scale=4)BigDecimal amount;@Column(precision=7,scale=2)BigDecimal percentage;protected JpaExpensePlanAllocationEntity(){}JpaExpensePlanAllocationEntity(UUID id,UUID member,BigDecimal amount,BigDecimal percentage){this.id=id;memberId=member;this.amount=amount;this.percentage=percentage;}}

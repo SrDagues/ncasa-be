@@ -1,0 +1,3 @@
+package ncasa.expense.infrastructure.outbox;
+import java.time.Instant;import java.util.*;import org.springframework.data.jpa.repository.*;import org.springframework.data.repository.query.Param;
+interface SpringDataOutboxRepository extends JpaRepository<JpaOutboxMessageEntity,UUID>{@Query(value="select * from outbox_messages where ((status='PENDING' and available_at<=:now) or (status='PROCESSING' and locked_at<:stale)) order by available_at,id limit :limit for update skip locked",nativeQuery=true)List<JpaOutboxMessageEntity> claim(@Param("now")Instant now,@Param("stale")Instant stale,@Param("limit")int limit);boolean existsByDeduplicationKey(String key);}
