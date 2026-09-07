@@ -1,0 +1,11 @@
+package ncasa.notification.infrastructure.persistence;
+
+import static org.assertj.core.api.Assertions.*;import java.math.BigDecimal;import java.time.*;import java.util.*;import ncasa.notification.application.port.out.NotificationRepository;import ncasa.notification.domain.*;import ncasa.support.PostgresIntegrationTest;import org.junit.jupiter.api.*;import org.springframework.beans.factory.annotation.Autowired;import org.springframework.dao.DataIntegrityViolationException;import org.springframework.jdbc.core.JdbcTemplate;
+
+class JpaNotificationRepositoryAdapterIT extends PostgresIntegrationTest{
+    @Autowired NotificationRepository notifications;@Autowired JdbcTemplate jdbc;private final UUID household=UUID.randomUUID(),plan=UUID.randomUUID();private final Instant now=Instant.parse("2026-09-04T10:00:00Z");
+    @BeforeEach void clear(){jdbc.update("DELETE FROM in_app_notifications");}
+    @Test void persistsFiltersAndMarksRead(){var first=value(UUID.randomUUID(),1L,now);var second=value(UUID.randomUUID(),2L,now.plusSeconds(1));notifications.saveAll(List.of(first,second));var page=notifications.findPage(new AccountRef(1L),Set.of(new HouseholdRef(household)),true,0,20);assertThat(page.content()).hasSize(1);assertThat(notifications.countUnread(new AccountRef(1L),Set.of(new HouseholdRef(household)))).isEqualTo(1);notifications.markAllRead(new AccountRef(1L),Set.of(new HouseholdRef(household)),now.plusSeconds(3));assertThat(notifications.countUnread(new AccountRef(1L),Set.of(new HouseholdRef(household)))).isZero();}
+    @Test void databaseRejectsDuplicateEventRecipient(){var event=UUID.randomUUID();notifications.saveAll(List.of(value(event,1L,now)));assertThatThrownBy(()->notifications.saveAll(List.of(value(event,1L,now.plusSeconds(1))))).isInstanceOf(DataIntegrityViolationException.class);}
+    private Notification value(UUID event,long account,Instant created){return Notification.create(new NotificationId(UUID.randomUUID()),new IntegrationEventId(event),new AccountRef(account),new HouseholdRef(household),new PlanRef(plan),NotificationKind.EXPENSE_PLAN_OCCURRENCE_APPROACHING,"Rent",new NotificationAmount(new BigDecimal("20.00"),"EUR"),LocalDate.of(2026,9,5),1,12,null,now,created);}
+}

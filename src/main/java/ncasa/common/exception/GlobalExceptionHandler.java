@@ -27,6 +27,7 @@ import ncasa.expense.domain.ExpenseRuleViolationException;
 import ncasa.expense.domain.ExpenseStateException;
 import ncasa.expense.domain.SettlementStateException;
 import ncasa.expense.domain.ExpensePlanStateException;
+import ncasa.notification.application.NotificationNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -40,6 +41,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.MissingRequestHeaderException;
+import jakarta.validation.ConstraintViolationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -69,7 +71,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class,
-            MissingRequestHeaderException.class})
+            MissingRequestHeaderException.class, ConstraintViolationException.class})
     ResponseEntity<ApiError> malformedInput(Exception ex) {
         return response(HttpStatus.BAD_REQUEST, "Malformed request", Map.of());
     }
@@ -81,7 +83,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({HouseholdNotFoundException.class, InvitationNotFoundException.class,
             ExpenseNotFoundException.class, SettlementNotFoundException.class, CategoryNotFoundException.class,
-            DraftNotFoundException.class, ExpensePlanNotFoundException.class})
+            DraftNotFoundException.class, ExpensePlanNotFoundException.class, NotificationNotFoundException.class})
     ResponseEntity<ApiError> notFound(RuntimeException ex) {
         return response(HttpStatus.NOT_FOUND, ex.getMessage(), Map.of());
     }

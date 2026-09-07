@@ -1,0 +1,3 @@
+package ncasa.notification.application;
+import java.time.Clock;import ncasa.notification.application.port.out.*;import ncasa.notification.domain.AccountRef;
+public final class MarkAllNotificationsReadUseCase{private final NotificationRepository notifications;private final HouseholdNotificationDirectoryPort households;private final Clock clock;public MarkAllNotificationsReadUseCase(NotificationRepository n,HouseholdNotificationDirectoryPort h,Clock c){notifications=n;households=h;clock=c;}public int execute(Long account){return notifications.markAllRead(new AccountRef(account),NotificationAccess.households(households,account),clock.instant());}}
