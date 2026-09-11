@@ -16,7 +16,7 @@ public class NotificationController{
     @PostMapping("/read-all") @ResponseStatus(HttpStatus.NO_CONTENT) void readAll(@AuthenticationPrincipal IdentityUserDetails user){int changed=readAll.execute(user.id());LOG.atInfo().addKeyValue("event.action","notifications_marked_read").addKeyValue("notification.changed_count",changed).log("notifications_marked_read");}
     record UnreadCountResponse(long unreadCount){}
     record PageResponse(List<NotificationResponse> items,int page,int size,long totalElements,int totalPages){static PageResponse from(NotificationPage p){return new PageResponse(p.items().stream().map(NotificationResponse::from).toList(),p.page(),p.size(),p.totalElements(),p.totalPages());}}
-    record NotificationResponse(UUID id,NotificationKind kind,UUID householdId,UUID planId,String subject,
-            String amount,String currency,LocalDate occurrenceDate,int occurrenceNumber,Integer totalOccurrences,
-            String attentionReason,Instant occurredAt,Instant createdAt,Instant readAt){static NotificationResponse from(NotificationView v){return new NotificationResponse(v.id(),v.kind(),v.householdId(),v.planId(),v.subject(),v.amount().toPlainString(),v.currency(),v.occurrenceDate(),v.occurrenceNumber(),v.totalOccurrences(),v.attentionReason(),v.occurredAt(),v.createdAt(),v.readAt());}}
+    record NotificationResponse(UUID id,NotificationKind kind,UUID householdId,UUID planId,UUID calendarEntryId,String subject,
+            String amount,String currency,LocalDate occurrenceDate,Integer occurrenceNumber,Integer totalOccurrences,
+            String attentionReason,UUID completedByMemberId,Instant occurredAt,Instant createdAt,Instant readAt){static NotificationResponse from(NotificationView v){return new NotificationResponse(v.id(),v.kind(),v.householdId(),v.planId(),v.calendarEntryId(),v.subject(),v.amount()==null?null:v.amount().toPlainString(),v.currency(),v.occurrenceDate(),v.occurrenceNumber(),v.totalOccurrences(),v.attentionReason(),v.completedByMemberId(),v.occurredAt(),v.createdAt(),v.readAt());}}
 }

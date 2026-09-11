@@ -37,4 +37,17 @@ class ArchitectureTest {
             .should().dependOnClassesThat().resideInAnyPackage(
                     "..expense..", "..household..", "..identityaccess..", "..common..",
                     "org.springframework..", "jakarta.persistence..");
+
+    @ArchTest
+    static final ArchRule calendar_domain_is_isolated = noClasses()
+            .that().resideInAnyPackage("..calendar.domain..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "..expense..", "..household..", "..identityaccess..", "..notification..", "..common..",
+                    "org.springframework..", "jakarta.persistence..");
+
+    @ArchTest
+    static final ArchRule calendar_does_not_reach_other_infrastructure = noClasses()
+            .that().resideInAnyPackage("..calendar..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "..household.infrastructure..", "..expense.infrastructure..", "..notification.infrastructure..");
 }
