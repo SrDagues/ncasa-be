@@ -49,9 +49,12 @@ create, update, delete, purchase, reopen, reorder and purchased-cleanup operatio
 versions; reorder and purchased cleanup carry `contentRevision`. Validation is `400`, denied access `403`, an
 inaccessible resource `404`, and uniqueness or concurrency conflict `409`.
 
-Detail reads return an ETag composed from list version and content revision. `If-None-Match` returns an empty `304`
-when no list or item content changed. The frontend polls every 15 seconds only while its route and browser tab are
-visible, requests immediately when visibility returns, and cancels polling on route teardown.
+Detail reads return an ETag composed from list version and content revision. Ordered collection reads also return
+an ETag derived from every visible list ID, version and content revision. `If-None-Match` returns an empty `304`
+when the corresponding representation did not change. The frontend polls detail every 15 seconds and the active
+collection every 60 seconds only while its route and browser tab are visible, requests both immediately when
+visibility returns, and cancels in-flight polling on route teardown. Item creation returns the created item and the
+authoritative list summary, including its exact `contentRevision`.
 
 ## Persistence and integrations
 
@@ -61,7 +64,9 @@ audit IDs and calendar series IDs are scalar references without cross-context fo
 
 Household access and active assignees are checked through a port. Calendar series validity is checked through a
 port. Calendar lifecycle and Household membership lifecycle invoke Shopping List application ports synchronously.
-Audit IDs remain after a person leaves even though their active assignment is removed.
+Audit IDs remain after a person leaves even though their active assignment is removed. Position allocation for new
+or reopened pending products locks the list row for the duration of allocation, preventing duplicate tail positions
+without coupling independent item edits to the list's optimistic metadata version.
 
 ## Security and operations
 

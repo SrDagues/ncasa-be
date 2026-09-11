@@ -37,13 +37,26 @@ class ShoppingListUseCasesTest {
                 .isInstanceOf(ShoppingListAccessDeniedException.class);
     }
 
+    @Test void addsAtTheEndWhileHoldingTheContentLockAndReturnsTheExactRevision(){
+        var list=new CreateShoppingListUseCase(lists,access,clock).execute(1L,household,"Compra");
+
+        var result=new AddShoppingItemUseCase(lists,items,access,clock).execute(1L,household,list.id(),
+                new ShoppingItemCommand("Leche",null,null,null,null,null));
+
+        assertThat(result.item().position()).isZero();
+        assertThat(result.list().contentRevision()).isEqualTo(1);
+        assertThat(lists.contentLocked).isTrue();
+    }
+
     private static final class Lists implements ShoppingListRepository{
-        final Map<UUID,ShoppingList> values=new LinkedHashMap<>();
+        final Map<UUID,ShoppingList> values=new LinkedHashMap<>();boolean contentLocked;
         public ShoppingList save(ShoppingList value){values.put(value.id(),value);return value;}
         public Optional<ShoppingList> find(UUID id,UUID household){return Optional.ofNullable(values.get(id)).filter(x->x.householdId().equals(household));}
+        public Optional<ShoppingList> findForContentUpdate(UUID id,UUID household){contentLocked=true;return find(id,household);}
         public List<ShoppingList> list(UUID household,ShoppingListStatus status){return values.values().stream().filter(x->x.householdId().equals(household)&&x.status()==status).toList();}
         public boolean existsActiveName(UUID household,String normalized,UUID excluded){return values.values().stream().anyMatch(x->x.householdId().equals(household)&&x.status()==ShoppingListStatus.ACTIVE&&x.normalizedName().equals(normalized)&&!x.id().equals(excluded));}
         public Optional<ShoppingList> findActiveByCalendarSeries(UUID series){return values.values().stream().filter(x->x.status()==ShoppingListStatus.ACTIVE&&series.equals(x.calendarSeriesId())).findFirst();}
+        public void touchContent(UUID listId,Instant now){values.get(listId).contentChanged(now);}
         public void delete(ShoppingList value){values.remove(value.id());}
     }
     private static final class Items implements ShoppingItemRepository{

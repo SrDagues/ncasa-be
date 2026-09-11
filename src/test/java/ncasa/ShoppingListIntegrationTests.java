@@ -33,19 +33,30 @@ class ShoppingListIntegrationTests {
                 .andReturn().getResponse().getContentAsString());
         String listId = list.get("id").asString();
 
+        var collection = mvc.perform(get("/api/households/{id}/shopping-lists", householdId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk()).andExpect(header().exists(HttpHeaders.ETAG))
+                .andExpect(jsonPath("$[0].id").value(listId)).andReturn().getResponse();
+        mvc.perform(get("/api/households/{id}/shopping-lists", householdId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .header(HttpHeaders.IF_NONE_MATCH, collection.getHeader(HttpHeaders.ETAG)))
+                .andExpect(status().isNotModified()).andExpect(content().string(""));
+
         mvc.perform(post("/api/households/{id}/shopping-lists", householdId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"  COMPRA   SEMANAL \"}"))
                 .andExpect(status().isConflict());
 
-        JsonNode item = json.readTree(mvc.perform(post("/api/households/{id}/shopping-lists/{listId}/items", householdId, listId)
+        JsonNode added = json.readTree(mvc.perform(post("/api/households/{id}/shopping-lists/{listId}/items", householdId, listId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"name":"Tomates","quantity":2,"unit":"UNIT","note":"Para ensalada",
                                  "customUnit":null,"responsibleMemberId":"%s"}
                                 """.formatted(memberId)))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.item.status").value("PENDING"))
+                .andExpect(jsonPath("$.list.contentRevision").value(1))
                 .andReturn().getResponse().getContentAsString());
+        JsonNode item = added.get("item");
 
         var detail = mvc.perform(get("/api/households/{id}/shopping-lists/{listId}", householdId, listId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)))
@@ -67,10 +78,15 @@ class ShoppingListIntegrationTests {
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(jsonPath("$.purchased[0].purchasedByMemberId").value(memberId))
                 .andReturn().getResponse().getContentAsString());
-        mvc.perform(post("/api/households/{id}/shopping-lists/{listId}/trash", householdId, listId)
+        JsonNode trashed = json.readTree(mvc.perform(post("/api/households/{id}/shopping-lists/{listId}/trash", householdId, listId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"version\":" + latest.get("list").get("version").asLong() + "}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("TRASHED"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("TRASHED"))
+                .andReturn().getResponse().getContentAsString());
+        mvc.perform(post("/api/households/{id}/shopping-lists/{listId}/restore", householdId, listId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"version\":" + trashed.get("version").asLong() + "}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ACTIVE"));
     }
 
     private JsonNode createHousehold(String token) throws Exception {

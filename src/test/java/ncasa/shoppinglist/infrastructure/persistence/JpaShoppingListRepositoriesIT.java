@@ -5,7 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import ncasa.shoppinglist.application.port.out.ShoppingItemRepository;
 import ncasa.shoppinglist.application.port.out.ShoppingListRepository;
 import ncasa.shoppinglist.domain.ShoppingItem;
@@ -96,6 +100,78 @@ class JpaShoppingListRepositoriesIT extends PostgresIntegrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
         assertThatThrownBy(() -> insertItem(list.id(), null, null, "PURCHASED", null, null))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void serializesConcurrentPositionAllocationForNewItems() throws Exception {
+        var list = lists.save(ShoppingList.create(UUID.randomUUID(), householdId, "Compra", memberId, now));
+
+        var positions = runConcurrently(
+                () -> allocateNewPendingItem(list.id(), "Leche"),
+                () -> allocateNewPendingItem(list.id(), "Pan"));
+
+        assertThat(positions).containsExactlyInAnyOrder(0L, 1L);
+    }
+
+    @Test
+    void serializesConcurrentPositionAllocationForReopenedItems() throws Exception {
+        var list = lists.save(ShoppingList.create(UUID.randomUUID(), householdId, "Compra", memberId, now));
+        var milk = purchasedItem(list.id(), "Leche", 0);
+        var bread = purchasedItem(list.id(), "Pan", 1);
+
+        var positions = runConcurrently(
+                () -> reopenAtEnd(list.id(), milk.id()),
+                () -> reopenAtEnd(list.id(), bread.id()));
+
+        assertThat(positions).containsExactlyInAnyOrder(0L, 1L);
+    }
+
+    private long allocateNewPendingItem(UUID listId, String name) {
+        return transactions.execute(status -> {
+            lists.findForContentUpdate(listId, householdId).orElseThrow();
+            long position = items.nextPendingPosition(listId);
+            items.save(ShoppingItem.create(UUID.randomUUID(), listId, name, null,
+                    null, null, null, null, memberId, position, now));
+            return position;
+        });
+    }
+
+    private ShoppingItem purchasedItem(UUID listId, String name, long position) {
+        var item = ShoppingItem.create(UUID.randomUUID(), listId, name, null,
+                null, null, null, null, memberId, position, now);
+        item.purchase(memberId, now);
+        return items.save(item);
+    }
+
+    private long reopenAtEnd(UUID listId, UUID itemId) {
+        return transactions.execute(status -> {
+            lists.findForContentUpdate(listId, householdId).orElseThrow();
+            var item = items.find(itemId, listId).orElseThrow();
+            long position = items.nextPendingPosition(listId);
+            item.reopen(position, now.plusSeconds(1));
+            items.save(item);
+            return position;
+        });
+    }
+
+    private List<Long> runConcurrently(Callable<Long> first, Callable<Long> second) throws Exception {
+        var ready = new CountDownLatch(2);
+        var start = new CountDownLatch(1);
+        Callable<Long> synchronizedFirst = () -> awaitStart(ready, start, first);
+        Callable<Long> synchronizedSecond = () -> awaitStart(ready, start, second);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var firstResult = executor.submit(synchronizedFirst);
+            var secondResult = executor.submit(synchronizedSecond);
+            ready.await();
+            start.countDown();
+            return List.of(firstResult.get(), secondResult.get());
+        }
+    }
+
+    private long awaitStart(CountDownLatch ready, CountDownLatch start, Callable<Long> operation) throws Exception {
+        ready.countDown();
+        start.await();
+        return operation.call();
     }
 
     private void insertItem(UUID listId, String unit, String customUnit, String status,

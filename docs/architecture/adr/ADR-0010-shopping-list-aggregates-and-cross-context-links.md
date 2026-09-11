@@ -17,6 +17,8 @@ with Household membership and recurring Calendar data without transferring owner
 the list version. Product edits and state transitions use the item version. A monotonic `contentRevision`, advanced
 atomically without incrementing the metadata version for ordinary item mutations, invalidates detail ETags.
 Reorder atomically compares and advances that revision before changing positions, so one concurrent reorder wins.
+Appending a new or reopened pending item takes a short pessimistic lock on the owning list while calculating the
+next position. This serializes only tail allocation and prevents equal positions under concurrent inserts.
 
 Cross-context references are scalar IDs. Shopping List validates membership and calendar references through
 application ports and has no domain dependency or foreign key to Household, Calendar or Identity. Calendar links
@@ -56,6 +58,7 @@ Deferred. Conditional 15-second polling meets the initial collaboration requirem
 - Cross-context cleanup is immediate inside the modular monolith but replaceable by events later.
 - Restored links require an explicit user action, avoiding accidental associations.
 - Reorder requests must include every current pending item ID.
+- Item creation responses include the authoritative list revision; clients do not calculate it locally.
 
 ## Validation
 

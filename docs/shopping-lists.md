@@ -10,6 +10,8 @@ custom label. Quantity is optional and accepts a positive value with up to three
 Active names are compared case-insensitively after trimming and collapsing whitespace. Restoring a name conflict
 adds the first free numeric suffix (`_2`, `_3`, …). Trashed lists are read-only and lose calendar links.
 
-Clients should poll detail every 15 seconds while visible, send the last ETag through `If-None-Match`, and preserve
-their current state on `304`. The MVP has no prices, expense integration, notifications, offline behavior or
-real-time transport.
+Clients should poll detail every 15 seconds and the active-list collection every 60 seconds while visible. Both
+resources expose an ETag; clients send it through `If-None-Match`, preserve their current state on `304`, and issue
+both requests immediately when visibility returns. Creating an item returns both the item and the authoritative
+list summary so clients never infer `contentRevision`. The MVP has no prices, expense integration, notifications,
+offline behavior or real-time transport.

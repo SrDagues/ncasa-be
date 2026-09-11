@@ -6,7 +6,11 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 import ncasa.identityaccess.infrastructure.security.IdentityUserDetails;
@@ -54,9 +58,13 @@ public class ShoppingListController {
 
     @GetMapping
     @Transactional(readOnly = true)
-    List<ListResponse> lists(@AuthenticationPrincipal IdentityUserDetails user, @PathVariable UUID householdId,
-            @RequestParam(defaultValue = "false") boolean trashed) {
-        return list.execute(user.id(), householdId, trashed).stream().map(ListResponse::from).toList();
+    ResponseEntity<List<ListResponse>> lists(@AuthenticationPrincipal IdentityUserDetails user,
+            @PathVariable UUID householdId, @RequestParam(defaultValue = "false") boolean trashed,
+            @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
+        var values = list.execute(user.id(), householdId, trashed);
+        String etag = collectionEtag(values);
+        if (etag.equals(ifNoneMatch)) return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(etag).build();
+        return ResponseEntity.ok().eTag(etag).body(values.stream().map(ListResponse::from).toList());
     }
 
     @PostMapping
@@ -113,11 +121,11 @@ public class ShoppingListController {
 
     @PostMapping("/{listId}/items")
     @ResponseStatus(HttpStatus.CREATED)
-    ItemResponse addItem(@AuthenticationPrincipal IdentityUserDetails user, @PathVariable UUID householdId,
+    AddedItemResponse addItem(@AuthenticationPrincipal IdentityUserDetails user, @PathVariable UUID householdId,
             @PathVariable UUID listId, @Valid @RequestBody ItemRequest request) {
         var result = addItem.execute(user.id(), householdId, listId, request.command());
-        audit("add_item", householdId, listId, result.id(), "success");
-        return ItemResponse.from(result);
+        audit("add_item", householdId, listId, result.item().id(), "success");
+        return AddedItemResponse.from(result);
     }
 
     @PutMapping("/{listId}/items/{itemId}")
@@ -172,6 +180,19 @@ public class ShoppingListController {
         return "\"" + value.version() + "-" + value.contentRevision() + "\"";
     }
 
+    private static String collectionEtag(List<ShoppingList> values) {
+        try {
+            var digest = MessageDigest.getInstance("SHA-256");
+            for (var value : values) {
+                digest.update((value.id() + ":" + value.version() + ":" + value.contentRevision() + ";")
+                        .getBytes(StandardCharsets.UTF_8));
+            }
+            return "\"" + HexFormat.of().formatHex(digest.digest()) + "\"";
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is unavailable", impossible);
+        }
+    }
+
     private static void audit(String action, UUID householdId, UUID listId, UUID itemId, String result) {
         LOGGER.atInfo().addKeyValue("event.action", action).addKeyValue("household.id", householdId)
                 .addKeyValue("shopping_list.id", listId).addKeyValue("shopping_item.id", itemId)
@@ -191,6 +212,11 @@ public class ShoppingListController {
     }
 
     record ClearPurchasedResponse(int deleted) {}
+    record AddedItemResponse(ItemResponse item, ListResponse list) {
+        static AddedItemResponse from(AddShoppingItemResult value) {
+            return new AddedItemResponse(ItemResponse.from(value.item()), ListResponse.from(value.list()));
+        }
+    }
     record ListResponse(UUID id, String name, UUID calendarSeriesId, ShoppingListStatus status,
             UUID createdByMemberId, Instant createdAt, Instant updatedAt, Instant deletedAt, long version,
             long contentRevision) {
