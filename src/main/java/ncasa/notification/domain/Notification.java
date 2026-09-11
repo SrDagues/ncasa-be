@@ -10,36 +10,45 @@ public final class Notification {
     private final AccountRef recipient;
     private final HouseholdRef householdId;
     private final PlanRef planId;
+    private final CalendarEntryRef calendarEntryId;
     private final NotificationKind kind;
     private final String subject;
     private final NotificationAmount amount;
     private final LocalDate occurrenceDate;
-    private final int occurrenceNumber;
+    private final Integer occurrenceNumber;
     private final Integer totalOccurrences;
     private final String attentionReason;
+    private final java.util.UUID completedByMemberId;
     private final Instant occurredAt;
     private final Instant createdAt;
     private Instant readAt;
 
     private Notification(NotificationId id, IntegrationEventId eventId, AccountRef recipient,
-            HouseholdRef householdId, PlanRef planId, NotificationKind kind, String subject,
-            NotificationAmount amount, LocalDate occurrenceDate, int occurrenceNumber,
-            Integer totalOccurrences, String attentionReason, Instant occurredAt, Instant createdAt,
-            Instant readAt) {
+            HouseholdRef householdId, PlanRef planId, CalendarEntryRef calendarEntryId, NotificationKind kind,
+            String subject, NotificationAmount amount, LocalDate occurrenceDate, Integer occurrenceNumber,
+            Integer totalOccurrences, String attentionReason, java.util.UUID completedByMemberId,
+            Instant occurredAt, Instant createdAt, Instant readAt) {
         this.id = Objects.requireNonNull(id);
         this.eventId = Objects.requireNonNull(eventId);
         this.recipient = Objects.requireNonNull(recipient);
         this.householdId = Objects.requireNonNull(householdId);
-        this.planId = Objects.requireNonNull(planId);
         this.kind = Objects.requireNonNull(kind);
+        boolean taskCompletion = kind == NotificationKind.CALENDAR_TASK_COMPLETED;
+        this.planId = taskCompletion ? planId : Objects.requireNonNull(planId);
+        this.calendarEntryId = taskCompletion ? Objects.requireNonNull(calendarEntryId) : calendarEntryId;
+        if (taskCompletion && planId != null) throw new IllegalArgumentException("Task notification cannot reference an expense plan");
+        if (!taskCompletion && calendarEntryId != null) throw new IllegalArgumentException("Expense notification cannot reference a calendar entry");
         this.subject = required(subject, 240, "Subject");
-        this.amount = Objects.requireNonNull(amount);
+        this.amount = taskCompletion ? amount : Objects.requireNonNull(amount);
+        if (taskCompletion && amount != null) throw new IllegalArgumentException("Task notification cannot contain an amount");
         this.occurrenceDate = Objects.requireNonNull(occurrenceDate, "Occurrence date is required");
-        if (occurrenceNumber <= 0)
+        if (!taskCompletion && (occurrenceNumber == null || occurrenceNumber <= 0))
             throw new IllegalArgumentException("Occurrence number must be positive");
-        if (totalOccurrences != null && totalOccurrences < occurrenceNumber) {
+        if (totalOccurrences != null && (occurrenceNumber == null || totalOccurrences < occurrenceNumber)) {
             throw new IllegalArgumentException("Total occurrences cannot precede current occurrence");
         }
+        if (taskCompletion && (occurrenceNumber != null || totalOccurrences != null))
+            throw new IllegalArgumentException("Task notification cannot contain installment data");
         this.occurrenceNumber = occurrenceNumber;
         this.totalOccurrences = totalOccurrences;
         boolean attention = kind == NotificationKind.EXPENSE_PLAN_ATTENTION_REQUIRED;
@@ -51,6 +60,9 @@ public final class Notification {
             }
             this.attentionReason = null;
         }
+        this.completedByMemberId = taskCompletion ? Objects.requireNonNull(completedByMemberId) : completedByMemberId;
+        if (!taskCompletion && completedByMemberId != null)
+            throw new IllegalArgumentException("Expense notification cannot contain a completing member");
         this.occurredAt = Objects.requireNonNull(occurredAt);
         this.createdAt = Objects.requireNonNull(createdAt);
         if (occurredAt.isAfter(createdAt))
@@ -64,8 +76,16 @@ public final class Notification {
             HouseholdRef householdId, PlanRef planId, NotificationKind kind, String subject,
             NotificationAmount amount, LocalDate occurrenceDate, int occurrenceNumber,
             Integer totalOccurrences, String attentionReason, Instant occurredAt, Instant createdAt) {
-        return new Notification(id, eventId, recipient, householdId, planId, kind, subject, amount, occurrenceDate,
-                occurrenceNumber, totalOccurrences, attentionReason, occurredAt, createdAt, null);
+        return new Notification(id, eventId, recipient, householdId, planId, null, kind, subject, amount, occurrenceDate,
+                occurrenceNumber, totalOccurrences, attentionReason, null, occurredAt, createdAt, null);
+    }
+
+    public static Notification taskCompleted(NotificationId id, IntegrationEventId eventId, AccountRef recipient,
+            HouseholdRef householdId, CalendarEntryRef calendarEntryId, String subject, LocalDate occurrenceDate,
+            java.util.UUID completedByMemberId, Instant occurredAt, Instant createdAt) {
+        return new Notification(id,eventId,recipient,householdId,null,calendarEntryId,
+                NotificationKind.CALENDAR_TASK_COMPLETED,subject,null,occurrenceDate,null,null,null,
+                completedByMemberId,occurredAt,createdAt,null);
     }
 
     public static Notification rehydrate(NotificationId id, IntegrationEventId eventId, AccountRef recipient,
@@ -73,8 +93,18 @@ public final class Notification {
             NotificationAmount amount, LocalDate occurrenceDate, int occurrenceNumber,
             Integer totalOccurrences, String attentionReason, Instant occurredAt, Instant createdAt,
             Instant readAt) {
-        return new Notification(id, eventId, recipient, householdId, planId, kind, subject, amount, occurrenceDate,
-                occurrenceNumber, totalOccurrences, attentionReason, occurredAt, createdAt, readAt);
+        return new Notification(id, eventId, recipient, householdId, planId, null, kind, subject, amount, occurrenceDate,
+                occurrenceNumber, totalOccurrences, attentionReason, null, occurredAt, createdAt, readAt);
+    }
+
+    public static Notification rehydrate(NotificationId id, IntegrationEventId eventId, AccountRef recipient,
+            HouseholdRef householdId, PlanRef planId, CalendarEntryRef calendarEntryId, NotificationKind kind,
+            String subject, NotificationAmount amount, LocalDate occurrenceDate, Integer occurrenceNumber,
+            Integer totalOccurrences, String attentionReason, java.util.UUID completedByMemberId,
+            Instant occurredAt, Instant createdAt, Instant readAt) {
+        return new Notification(id,eventId,recipient,householdId,planId,calendarEntryId,kind,subject,amount,
+                occurrenceDate,occurrenceNumber,totalOccurrences,attentionReason,completedByMemberId,
+                occurredAt,createdAt,readAt);
     }
 
     public void markRead(Instant now) {
@@ -118,6 +148,8 @@ public final class Notification {
         return planId;
     }
 
+    public CalendarEntryRef calendarEntryId() { return calendarEntryId; }
+
     public NotificationKind kind() {
         return kind;
     }
@@ -134,7 +166,7 @@ public final class Notification {
         return occurrenceDate;
     }
 
-    public int occurrenceNumber() {
+    public Integer occurrenceNumber() {
         return occurrenceNumber;
     }
 
@@ -145,6 +177,8 @@ public final class Notification {
     public String attentionReason() {
         return attentionReason;
     }
+
+    public java.util.UUID completedByMemberId() { return completedByMemberId; }
 
     public Instant occurredAt() {
         return occurredAt;

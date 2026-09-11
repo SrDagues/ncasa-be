@@ -20,6 +20,14 @@ public final class NotificationRecipientPolicy {
                 .map(Candidate::accountId).map(AccountRef::new).forEach(result::add);
         return Set.copyOf(result);
     }
+    public Set<AccountRef> taskCompletionRecipients(Set<UUID> participantMemberIds,UUID completedByMemberId,List<Candidate> directory){
+        Set<AccountRef> result=new LinkedHashSet<>();
+        directory.stream().filter(Candidate::active)
+                .filter(candidate->participantMemberIds.contains(candidate.memberId()))
+                .filter(candidate->!candidate.memberId().equals(completedByMemberId))
+                .map(Candidate::accountId).map(AccountRef::new).forEach(result::add);
+        return Set.copyOf(result);
+    }
     public record PlanAudience(UUID createdByMemberId, UUID payerMemberId, Set<UUID> participantMemberIds) {
         public PlanAudience { participantMemberIds=Set.copyOf(participantMemberIds); }
     }
