@@ -11,6 +11,7 @@
 - Infrastructure → integration tests.
 - PostgreSQL integration tests → Testcontainers.
 - Tests orientados a comportamiento.
+- Siempre que se vaya a realizar una modificación que no sea un fix y el proyecto esté en la rama `main`, crear una rama nueva a partir de `main` antes de hacer cambios.
 
 For architectural decisions read:
 - docs/architecture/architecture.md
