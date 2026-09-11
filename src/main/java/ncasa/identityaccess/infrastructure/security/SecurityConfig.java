@@ -103,8 +103,8 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(properties.allowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", HttpRequestLoggingFilter.REQUEST_ID_HEADER));
-        config.setExposedHeaders(List.of(HttpRequestLoggingFilter.REQUEST_ID_HEADER));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "If-None-Match", HttpRequestLoggingFilter.REQUEST_ID_HEADER));
+        config.setExposedHeaders(List.of("ETag", HttpRequestLoggingFilter.REQUEST_ID_HEADER));
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

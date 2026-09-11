@@ -1,0 +1,3 @@
+package ncasa.shoppinglist.infrastructure.calendar;
+import java.util.UUID;import ncasa.calendar.application.port.out.CalendarSeriesLifecyclePort;import ncasa.shoppinglist.application.UnlinkShoppingListFromCalendarUseCase;import org.springframework.stereotype.Component;
+@Component public final class ShoppingListCalendarLifecycleAdapter implements CalendarSeriesLifecyclePort{private final UnlinkShoppingListFromCalendarUseCase unlink;public ShoppingListCalendarLifecycleAdapter(UnlinkShoppingListFromCalendarUseCase u){unlink=u;}public void seriesBecameInactive(UUID series){unlink.execute(series);}}

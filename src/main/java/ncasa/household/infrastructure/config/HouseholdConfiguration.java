@@ -30,8 +30,8 @@ public class HouseholdConfiguration {
     @Bean RenameHouseholdUseCase renameHousehold(HouseholdRepository r, Clock c, HouseholdViewAssembler v) { return new RenameHouseholdUseCase(r, c, v); }
     @Bean ChangeMemberRoleUseCase changeRole(HouseholdRepository r, Clock c, HouseholdViewAssembler v) { return new ChangeMemberRoleUseCase(r, c, v); }
     @Bean TransferOwnershipUseCase transferOwnership(HouseholdRepository r, Clock c, HouseholdViewAssembler v) { return new TransferOwnershipUseCase(r, c, v); }
-    @Bean RemoveMemberUseCase removeMember(HouseholdRepository r, Clock c) { return new RemoveMemberUseCase(r, c); }
-    @Bean LeaveHouseholdUseCase leaveHousehold(HouseholdRepository r, Clock c) { return new LeaveHouseholdUseCase(r, c); }
+    @Bean RemoveMemberUseCase removeMember(HouseholdRepository r, Clock c,InactiveMemberCleanupPort p) { return new RemoveMemberUseCase(r, c,p); }
+    @Bean LeaveHouseholdUseCase leaveHousehold(HouseholdRepository r, Clock c,InactiveMemberCleanupPort p) { return new LeaveHouseholdUseCase(r, c,p); }
     @Bean ArchiveHouseholdUseCase archiveHousehold(HouseholdRepository r, Clock c) { return new ArchiveHouseholdUseCase(r, c); }
     @Bean InviteHouseholdMemberUseCase invite(HouseholdRepository h, HouseholdInvitationRepository i,
             InvitationTokenGenerator g, InvitationTokenHasher s, InvitationDeliveryPort d, Clock c,

@@ -1,0 +1,3 @@
+package ncasa.shoppinglist.application;
+import java.time.Clock;import java.util.UUID;import ncasa.shoppinglist.application.port.out.ShoppingItemRepository;import ncasa.shoppinglist.application.port.out.ShoppingListRepository;
+public final class UnassignShoppingItemsUseCase{private final ShoppingItemRepository items;private final ShoppingListRepository lists;private final Clock clock;public UnassignShoppingItemsUseCase(ShoppingItemRepository i,ShoppingListRepository l,Clock c){items=i;lists=l;clock=c;}public int execute(UUID householdId,UUID memberId){var affected=items.assignedListIds(householdId,memberId);var now=clock.instant();int count=items.unassign(householdId,memberId,now);affected.forEach(id->lists.touchContent(id,now));return count;}}

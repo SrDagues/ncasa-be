@@ -13,7 +13,9 @@ public class CalendarConfiguration {
     @Bean CreateCalendarEntryUseCase createCalendarEntry(CalendarEntryRepository r,CalendarHouseholdAccessPort h,Clock c){return new CreateCalendarEntryUseCase(r,h,c);}
     @Bean ListCalendarOccurrencesUseCase listCalendarOccurrences(CalendarEntryRepository r,CalendarHouseholdAccessPort h){return new ListCalendarOccurrencesUseCase(r,h);}
     @Bean ListTrashedCalendarEntriesUseCase listTrashedCalendarEntries(CalendarEntryRepository r,CalendarHouseholdAccessPort h){return new ListTrashedCalendarEntriesUseCase(r,h);}
-    @Bean CalendarEntryLifecycleUseCase calendarEntryLifecycle(CalendarEntryRepository r,CalendarHouseholdAccessPort h,TaskCompletionNotificationPort n,Clock c){return new CalendarEntryLifecycleUseCase(r,h,n,c);}
+    @Bean CalendarEntryLifecycleUseCase calendarEntryLifecycle(CalendarEntryRepository r,CalendarHouseholdAccessPort h,TaskCompletionNotificationPort n,CalendarSeriesLifecyclePort s,Clock c){return new CalendarEntryLifecycleUseCase(r,h,n,s,c);}
     @Bean UpdateCalendarEntryUseCase updateCalendarEntry(CalendarEntryRepository r,CalendarHouseholdAccessPort h){return new UpdateCalendarEntryUseCase(r,h);}
     @Bean GetCalendarEntryUseCase getCalendarEntry(CalendarEntryRepository r,CalendarHouseholdAccessPort h){return new GetCalendarEntryUseCase(r,h);}
+    @Bean CalendarSeriesReferenceUseCase calendarSeriesReference(CalendarEntryRepository r){return new CalendarSeriesReferenceUseCase(r);}
+    @Bean ListCalendarSeriesOptionsUseCase listCalendarSeriesOptions(CalendarEntryRepository r,CalendarHouseholdAccessPort h){return new ListCalendarSeriesOptionsUseCase(r,h);}
 }

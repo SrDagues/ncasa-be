@@ -50,4 +50,18 @@ class ArchitectureTest {
             .that().resideInAnyPackage("..calendar..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     "..household.infrastructure..", "..expense.infrastructure..", "..notification.infrastructure..");
+
+    @ArchTest
+    static final ArchRule shopping_list_domain_is_isolated = noClasses()
+            .that().resideInAnyPackage("..shoppinglist.domain..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "..calendar..", "..household..", "..identityaccess..", "..expense..", "..notification..",
+                    "..common..", "org.springframework..", "jakarta.persistence..");
+
+    @ArchTest
+    static final ArchRule shopping_list_application_uses_ports_for_other_contexts = noClasses()
+            .that().resideInAnyPackage("..shoppinglist.application..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "..calendar..", "..household..", "..identityaccess..", "..expense..", "..notification..",
+                    "..shoppinglist.infrastructure..");
 }
