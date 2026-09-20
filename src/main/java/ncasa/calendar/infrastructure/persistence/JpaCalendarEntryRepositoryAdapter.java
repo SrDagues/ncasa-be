@@ -31,6 +31,7 @@ public class JpaCalendarEntryRepositoryAdapter implements CalendarEntryRepositor
     @Override public Optional<CalendarEntry> find(UUID id,UUID householdId){return repository.findByIdAndHouseholdId(id,householdId).map(this::domain);}
     @Override public List<CalendarEntry> findActive(UUID householdId){return repository.findByHouseholdIdAndDeletedAtIsNullOrderByStartDateAscIdAsc(householdId).stream().map(this::domain).toList();}
     @Override public List<CalendarEntry> findTrashed(UUID householdId){return repository.findByHouseholdIdAndDeletedAtIsNotNullOrderByDeletedAtDescIdAsc(householdId).stream().map(this::domain).toList();}
+    @Override public boolean activeSeriesExists(UUID householdId,UUID seriesId){return repository.existsByHouseholdIdAndSeriesIdAndDeletedAtIsNull(householdId,seriesId);}
     @Override public void delete(CalendarEntry entry){repository.deleteById(entry.id());repository.flush();}
     private CalendarEntry domain(JpaCalendarEntryEntity r){
         var timing=new CalendarTiming(r.allDay,r.startDate,r.startTime,r.endDate,r.endTime);

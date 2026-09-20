@@ -19,9 +19,10 @@ public class CalendarEntryController {
     private final CreateCalendarEntryUseCase create;private final UpdateCalendarEntryUseCase update;
     private final GetCalendarEntryUseCase get;private final ListCalendarOccurrencesUseCase list;
     private final ListTrashedCalendarEntriesUseCase trash;private final CalendarEntryLifecycleUseCase lifecycle;
+    private final ListCalendarSeriesOptionsUseCase seriesOptions;
     public CalendarEntryController(CreateCalendarEntryUseCase create,UpdateCalendarEntryUseCase update,
             GetCalendarEntryUseCase get,ListCalendarOccurrencesUseCase list,ListTrashedCalendarEntriesUseCase trash,
-            CalendarEntryLifecycleUseCase lifecycle){this.create=create;this.update=update;this.get=get;this.list=list;this.trash=trash;this.lifecycle=lifecycle;}
+            CalendarEntryLifecycleUseCase lifecycle,ListCalendarSeriesOptionsUseCase seriesOptions){this.create=create;this.update=update;this.get=get;this.list=list;this.trash=trash;this.lifecycle=lifecycle;this.seriesOptions=seriesOptions;}
 
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
     EntryResponse create(@AuthenticationPrincipal IdentityUserDetails user,@PathVariable UUID householdId,
@@ -33,6 +34,11 @@ public class CalendarEntryController {
     @GetMapping @Transactional(readOnly=true)
     List<OccurrenceResponse> list(@AuthenticationPrincipal IdentityUserDetails user,@PathVariable UUID householdId,
             @RequestParam LocalDate from,@RequestParam LocalDate to){return list.execute(user.id(),householdId,from,to).stream().map(OccurrenceResponse::from).toList();}
+
+    @GetMapping("/link-options") @Transactional(readOnly=true)
+    List<SeriesOptionResponse> linkOptions(@AuthenticationPrincipal IdentityUserDetails user,@PathVariable UUID householdId){
+        return seriesOptions.execute(user.id(),householdId).stream().map(SeriesOptionResponse::from).toList();
+    }
 
     @PutMapping("/{itemId}")
     EntryResponse update(@AuthenticationPrincipal IdentityUserDetails user,@PathVariable UUID householdId,@PathVariable UUID itemId,
@@ -81,4 +87,7 @@ public class CalendarEntryController {
     }
     record OccurrenceResponse(UUID itemId,String occurrenceKey,CalendarEntryKind kind,String title,CalendarTiming timing,String color,
             CalendarEntryStatus status,boolean recurring){static OccurrenceResponse from(CalendarOccurrence o){return new OccurrenceResponse(o.itemId(),o.occurrenceKey(),o.kind(),o.title(),o.timing(),o.color(),o.status(),o.recurring());}}
+    record SeriesOptionResponse(UUID seriesId,String title,CalendarEntryKind kind,LocalDate startDate){
+        static SeriesOptionResponse from(ListCalendarSeriesOptionsUseCase.CalendarSeriesOption value){return new SeriesOptionResponse(value.seriesId(),value.title(),value.kind(),value.startDate());}
+    }
 }

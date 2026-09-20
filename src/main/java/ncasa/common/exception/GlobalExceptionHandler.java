@@ -32,6 +32,12 @@ import ncasa.calendar.application.CalendarAccessDeniedException;
 import ncasa.calendar.application.CalendarEntryNotFoundException;
 import ncasa.calendar.application.CalendarEntryConflictException;
 import ncasa.calendar.domain.CalendarRuleViolationException;
+import ncasa.shoppinglist.application.ShoppingItemNotFoundException;
+import ncasa.shoppinglist.application.ShoppingListAccessDeniedException;
+import ncasa.shoppinglist.application.ShoppingListConflictException;
+import ncasa.shoppinglist.application.ShoppingListNotFoundException;
+import ncasa.shoppinglist.domain.ShoppingListRuleViolationException;
+import ncasa.shoppinglist.domain.ShoppingListStateException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -80,7 +86,8 @@ public class GlobalExceptionHandler {
         return response(HttpStatus.BAD_REQUEST, "Malformed request", Map.of());
     }
 
-    @ExceptionHandler({HouseholdAccessDeniedException.class, ExpenseAccessDeniedException.class, CalendarAccessDeniedException.class})
+    @ExceptionHandler({HouseholdAccessDeniedException.class, ExpenseAccessDeniedException.class, CalendarAccessDeniedException.class,
+            ShoppingListAccessDeniedException.class})
     ResponseEntity<ApiError> forbidden(RuntimeException ex) {
         return response(HttpStatus.FORBIDDEN, ex.getMessage(), Map.of());
     }
@@ -88,7 +95,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({HouseholdNotFoundException.class, InvitationNotFoundException.class,
             ExpenseNotFoundException.class, SettlementNotFoundException.class, CategoryNotFoundException.class,
             DraftNotFoundException.class, ExpensePlanNotFoundException.class, NotificationNotFoundException.class,
-            CalendarEntryNotFoundException.class})
+            CalendarEntryNotFoundException.class, ShoppingListNotFoundException.class, ShoppingItemNotFoundException.class})
     ResponseEntity<ApiError> notFound(RuntimeException ex) {
         return response(HttpStatus.NOT_FOUND, ex.getMessage(), Map.of());
     }
@@ -105,7 +112,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({ExpenseStateException.class, SettlementStateException.class, SettlementConflictException.class,
             CategoryConflictException.class, DraftConflictException.class, ExpensePlanConflictException.class,
-            ExpensePlanStateException.class, CalendarEntryConflictException.class})
+            ExpensePlanStateException.class, CalendarEntryConflictException.class, ShoppingListConflictException.class,
+            ShoppingListStateException.class})
     ResponseEntity<ApiError> expenseConflict(RuntimeException ex) {
         return response(HttpStatus.CONFLICT, ex.getMessage(), Map.of());
     }
@@ -117,6 +125,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(CalendarRuleViolationException.class)
     ResponseEntity<ApiError> invalidCalendar(CalendarRuleViolationException ex) {
+        return response(HttpStatus.BAD_REQUEST, ex.getMessage(), Map.of());
+    }
+
+    @ExceptionHandler(ShoppingListRuleViolationException.class)
+    ResponseEntity<ApiError> invalidShoppingList(ShoppingListRuleViolationException ex) {
         return response(HttpStatus.BAD_REQUEST, ex.getMessage(), Map.of());
     }
 

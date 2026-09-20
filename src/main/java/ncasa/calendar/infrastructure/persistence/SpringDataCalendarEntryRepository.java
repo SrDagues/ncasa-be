@@ -7,4 +7,5 @@ interface SpringDataCalendarEntryRepository extends JpaRepository<JpaCalendarEnt
     Optional<JpaCalendarEntryEntity> findByIdAndHouseholdId(UUID id,UUID householdId);
     List<JpaCalendarEntryEntity> findByHouseholdIdAndDeletedAtIsNullOrderByStartDateAscIdAsc(UUID householdId);
     List<JpaCalendarEntryEntity> findByHouseholdIdAndDeletedAtIsNotNullOrderByDeletedAtDescIdAsc(UUID householdId);
+    boolean existsByHouseholdIdAndSeriesIdAndDeletedAtIsNull(UUID householdId,UUID seriesId);
 }

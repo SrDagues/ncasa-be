@@ -36,6 +36,10 @@ com.ncasa
 │   ├── domain
 │   ├── application
 │   └── infrastructure
+├── shoppinglist
+│   ├── domain
+│   ├── application
+│   └── infrastructure
 └── shared
 ```
 

@@ -10,5 +10,9 @@ public interface CalendarEntryRepository {
     Optional<CalendarEntry> find(UUID id, UUID householdId);
     List<CalendarEntry> findActive(UUID householdId);
     List<CalendarEntry> findTrashed(UUID householdId);
+    default boolean activeSeriesExists(UUID householdId, UUID seriesId) {
+        return findActive(householdId).stream()
+                .anyMatch(entry -> seriesId.equals(entry.seriesId()));
+    }
     void delete(CalendarEntry entry);
 }
