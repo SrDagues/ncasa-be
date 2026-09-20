@@ -19,6 +19,9 @@ atomically without incrementing the metadata version for ordinary item mutations
 Reorder atomically compares and advances that revision before changing positions, so one concurrent reorder wins.
 Appending a new or reopened pending item takes a short pessimistic lock on the owning list while calculating the
 next position. This serializes only tail allocation and prevents equal positions under concurrent inserts.
+Bulk reuse claims `contentRevision` once, reopens purchased item aggregates in purchase order and returns an
+authoritative detail snapshot. It is a lifecycle operation on existing aggregates, so it requires no template,
+cycle-history aggregate or schema change.
 
 Cross-context references are scalar IDs. Shopping List validates membership and calendar references through
 application ports and has no domain dependency or foreign key to Household, Calendar or Identity. Calendar links

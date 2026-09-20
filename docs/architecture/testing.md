@@ -596,6 +596,7 @@ The goal is fast feedback, clear executable specifications and confidence to ref
 ## Shopping-list critical journey
 
 Shopping List changes must preserve an executable journey that creates a list, adds and reorders products, marks a
-product purchased, reopens it, clears purchased products, moves the list to trash and restores it. Focused tests also
+product purchased, reuses purchased products for a new cycle, reopens it, clears purchased products, moves the list
+to trash and restores it. Focused tests also
 cover conditional `ETag/304` reads, independent item versions, atomic reorder revision conflicts, calendar unlinking
 and automatic unassignment when a household member becomes inactive.

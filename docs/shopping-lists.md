@@ -4,6 +4,11 @@ Shopping lists are household resources under `/api/households/{householdId}/shop
 and trashed list queries, list lifecycle, nested item CRUD, purchase/reopen, pending reorder and removal of all
 purchased items. See [RFC-0007](architecture/rfc/RFC-0007-shopping-list-bounded-context.md) for the complete contract.
 
+An active list can start a new shopping cycle with `POST /{listId}/items/reuse-purchased`. The request carries the
+current `contentRevision`; all purchased products return to the end of pending in purchase order while retaining
+quantity, unit, note and active assignee. Purchase date and purchaser are cleared and no historical cycle is kept.
+The response is the authoritative detail plus its ETag. With no purchased products the operation is a no-op.
+
 Optional units are `UNIT`, `KILOGRAM`, `GRAM`, `LITER`, `MILLILITER`, `PACKAGE` and `OTHER`. `OTHER` requires a
 custom label. Quantity is optional and accepts a positive value with up to three decimals.
 

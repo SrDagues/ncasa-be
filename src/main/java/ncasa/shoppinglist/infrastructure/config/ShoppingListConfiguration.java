@@ -61,6 +61,11 @@ public class ShoppingListConfiguration {
         return new ReorderShoppingItemsUseCase(lists, items, access, clock);
     }
 
+    @Bean ReusePurchasedShoppingItemsUseCase reusePurchasedShoppingItems(ShoppingListRepository lists,
+            ShoppingItemRepository items, ShoppingListHouseholdAccessPort access, Clock clock) {
+        return new ReusePurchasedShoppingItemsUseCase(lists, items, access, clock);
+    }
+
     @Bean UnlinkShoppingListFromCalendarUseCase unlinkShoppingListFromCalendar(ShoppingListRepository lists, Clock clock) {
         return new UnlinkShoppingListFromCalendarUseCase(lists, clock);
     }

@@ -78,9 +78,29 @@ class ShoppingListIntegrationTests {
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(jsonPath("$.purchased[0].purchasedByMemberId").value(memberId))
                 .andReturn().getResponse().getContentAsString());
+        JsonNode reused = json.readTree(mvc.perform(post("/api/households/{id}/shopping-lists/{listId}/items/reuse-purchased", householdId, listId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"contentRevision\":" + latest.get("list").get("contentRevision").asLong() + "}"))
+                .andExpect(status().isOk()).andExpect(header().exists(HttpHeaders.ETAG))
+                .andExpect(jsonPath("$.pending[0].name").value("Tomates"))
+                .andExpect(jsonPath("$.pending[0].note").value("Para ensalada"))
+                .andExpect(jsonPath("$.pending[0].responsibleMemberId").value(memberId))
+                .andExpect(jsonPath("$.pending[0].purchasedAt").doesNotExist())
+                .andExpect(jsonPath("$.pending[0].purchasedByMemberId").doesNotExist())
+                .andExpect(jsonPath("$.purchased").isEmpty())
+                .andReturn().getResponse().getContentAsString());
+        mvc.perform(post("/api/households/{id}/shopping-lists/{listId}/items/reuse-purchased", householdId, listId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"contentRevision\":" + latest.get("list").get("contentRevision").asLong() + "}"))
+                .andExpect(status().isConflict());
+        mvc.perform(post("/api/households/{id}/shopping-lists/{listId}/items/reuse-purchased", householdId, listId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"contentRevision\":" + reused.get("list").get("contentRevision").asLong() + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.list.contentRevision").value(reused.get("list").get("contentRevision").asLong()));
         JsonNode trashed = json.readTree(mvc.perform(post("/api/households/{id}/shopping-lists/{listId}/trash", householdId, listId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"version\":" + latest.get("list").get("version").asLong() + "}"))
+                        .content("{\"version\":" + reused.get("list").get("version").asLong() + "}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("TRASHED"))
                 .andReturn().getResponse().getContentAsString());
         mvc.perform(post("/api/households/{id}/shopping-lists/{listId}/restore", householdId, listId)

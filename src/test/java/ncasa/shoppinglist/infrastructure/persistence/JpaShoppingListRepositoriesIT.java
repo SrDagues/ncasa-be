@@ -126,6 +126,17 @@ class JpaShoppingListRepositoriesIT extends PostgresIntegrationTest {
         assertThat(positions).containsExactlyInAnyOrder(0L, 1L);
     }
 
+    @Test
+    void allowsOnlyOneConcurrentReuseToClaimTheContentRevision() throws Exception {
+        var list = lists.save(ShoppingList.create(UUID.randomUUID(), householdId, "Compra", memberId, now));
+
+        var claimed = runConcurrently(
+                () -> transactions.execute(status -> lists.advanceContentRevision(list.id(), 0, now)),
+                () -> transactions.execute(status -> lists.advanceContentRevision(list.id(), 0, now)));
+
+        assertThat(claimed).containsExactlyInAnyOrder(true, false);
+    }
+
     private long allocateNewPendingItem(UUID listId, String name) {
         return transactions.execute(status -> {
             lists.findForContentUpdate(listId, householdId).orElseThrow();
@@ -154,11 +165,11 @@ class JpaShoppingListRepositoriesIT extends PostgresIntegrationTest {
         });
     }
 
-    private List<Long> runConcurrently(Callable<Long> first, Callable<Long> second) throws Exception {
+    private <T> List<T> runConcurrently(Callable<T> first, Callable<T> second) throws Exception {
         var ready = new CountDownLatch(2);
         var start = new CountDownLatch(1);
-        Callable<Long> synchronizedFirst = () -> awaitStart(ready, start, first);
-        Callable<Long> synchronizedSecond = () -> awaitStart(ready, start, second);
+        Callable<T> synchronizedFirst = () -> awaitStart(ready, start, first);
+        Callable<T> synchronizedSecond = () -> awaitStart(ready, start, second);
         try (var executor = Executors.newFixedThreadPool(2)) {
             var firstResult = executor.submit(synchronizedFirst);
             var secondResult = executor.submit(synchronizedSecond);
@@ -168,7 +179,7 @@ class JpaShoppingListRepositoriesIT extends PostgresIntegrationTest {
         }
     }
 
-    private long awaitStart(CountDownLatch ready, CountDownLatch start, Callable<Long> operation) throws Exception {
+    private <T> T awaitStart(CountDownLatch ready, CountDownLatch start, Callable<T> operation) throws Exception {
         ready.countDown();
         start.await();
         return operation.call();

@@ -40,11 +40,13 @@ public class ShoppingListController {
     private final UpdateShoppingItemUseCase updateItem;
     private final ShoppingItemLifecycleUseCase itemLifecycle;
     private final ReorderShoppingItemsUseCase reorder;
+    private final ReusePurchasedShoppingItemsUseCase reusePurchased;
 
     public ShoppingListController(CreateShoppingListUseCase create, ListShoppingListsUseCase list,
             GetShoppingListUseCase get, UpdateShoppingListUseCase update, ShoppingListLifecycleUseCase lifecycle,
             AddShoppingItemUseCase addItem, UpdateShoppingItemUseCase updateItem,
-            ShoppingItemLifecycleUseCase itemLifecycle, ReorderShoppingItemsUseCase reorder) {
+            ShoppingItemLifecycleUseCase itemLifecycle, ReorderShoppingItemsUseCase reorder,
+            ReusePurchasedShoppingItemsUseCase reusePurchased) {
         this.create = create;
         this.list = list;
         this.get = get;
@@ -54,6 +56,7 @@ public class ShoppingListController {
         this.updateItem = updateItem;
         this.itemLifecycle = itemLifecycle;
         this.reorder = reorder;
+        this.reusePurchased = reusePurchased;
     }
 
     @GetMapping
@@ -176,6 +179,19 @@ public class ShoppingListController {
         return new ClearPurchasedResponse(deleted);
     }
 
+    @PostMapping("/{listId}/items/reuse-purchased")
+    ResponseEntity<DetailResponse> reusePurchased(@AuthenticationPrincipal IdentityUserDetails user,
+            @PathVariable UUID householdId, @PathVariable UUID listId,
+            @Valid @RequestBody ContentRevisionRequest request) {
+        var result = reusePurchased.execute(user.id(), householdId, listId, request.contentRevision());
+        var detail = result.detail();
+        LOGGER.atInfo().addKeyValue("event.action", "reuse_purchased")
+                .addKeyValue("household.id", householdId).addKeyValue("shopping_list.id", listId)
+                .addKeyValue("shopping_item.count", result.reusedCount())
+                .addKeyValue("event.outcome", "success").log("shopping_list_operation");
+        return ResponseEntity.ok().eTag(etag(detail.list())).body(DetailResponse.from(detail));
+    }
+
     private static String etag(ShoppingList value) {
         return "\"" + value.version() + "-" + value.contentRevision() + "\"";
     }
@@ -203,6 +219,7 @@ public class ShoppingListController {
     record UpdateListRequest(@PositiveOrZero long version, @NotBlank @Size(max = 80) String name, UUID calendarSeriesId) {}
     record VersionRequest(@PositiveOrZero long version) {}
     record ReorderRequest(@PositiveOrZero long contentRevision, @NotNull List<@NotNull UUID> itemIds) {}
+    record ContentRevisionRequest(@PositiveOrZero long contentRevision) {}
     record UpdateItemRequest(@PositiveOrZero long version, @NotNull @Valid ItemRequest item) {}
     record ItemRequest(@NotBlank @Size(max = 160) String name, BigDecimal quantity, ShoppingUnit unit,
             @Size(max = 30) String customUnit, @Size(max = 500) String note, UUID responsibleMemberId) {

@@ -39,6 +39,7 @@ physical deletion, individually or as a bulk removal of all purchased products.
 - Add, edit, delete, purchase and reopen products.
 - Reorder the exact current set of pending products.
 - Remove all purchased products.
+- Reuse all purchased products to prepare the same list for a new shopping cycle.
 - Unassign products when a responsible member becomes inactive.
 - Unlink a list when the last active revision of its calendar series disappears.
 
@@ -48,6 +49,10 @@ The collection is `/api/households/{householdId}/shopping-lists`. It exposes lis
 create, update, delete, purchase, reopen, reorder and purchased-cleanup operations. Mutations carry aggregate
 versions; reorder and purchased cleanup carry `contentRevision`. Validation is `400`, denied access `403`, an
 inaccessible resource `404`, and uniqueness or concurrency conflict `409`.
+
+`POST /{listId}/items/reuse-purchased` accepts `contentRevision` and returns the complete updated detail with an
+ETag. Current pending products keep their order; purchased products are appended by `purchasedAt` ascending. Their
+product data and active assignee remain, while purchase audit is cleared. An empty purchased section is a no-op.
 
 Detail reads return an ETag composed from list version and content revision. Ordered collection reads also return
 an ETag derived from every visible list ID, version and content revision. `If-None-Match` returns an empty `304`
@@ -76,4 +81,5 @@ result and identifiers only; product names and notes are excluded.
 ## Excluded and future work
 
 Prices, expenses, budgets, categories, templates, notifications, offline mode, WebSocket/SSE and live cursors are
-outside this MVP. A later real-time adapter can replace polling without changing domain rules or REST mutations.
+outside this MVP. Reuse is manual, does not create a copied list or historical shopping cycle, and is not triggered
+by the linked calendar series. A later real-time adapter can replace polling without changing domain rules or REST mutations.
