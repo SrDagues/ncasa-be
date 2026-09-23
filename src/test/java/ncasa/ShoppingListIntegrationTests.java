@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -18,6 +19,7 @@ import tools.jackson.databind.ObjectMapper;
 class ShoppingListIntegrationTests {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
+    @Autowired JdbcTemplate jdbc;
 
     @Test
     void shouldCreateAddPurchasePollTrashAndRestoreAList() throws Exception {
@@ -116,9 +118,13 @@ class ShoppingListIntegrationTests {
     }
 
     private String register(String email) throws Exception {
-        String response = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of("email", email, "password", "password123"))))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+                .andExpect(status().isCreated());
+        jdbc.update("UPDATE users SET email_verified_at = CURRENT_TIMESTAMP WHERE email = ?", email);
+        String response = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("email", email, "password", "password123"))))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         return json.readTree(response).get("accessToken").asString();
     }
 

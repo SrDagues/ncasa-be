@@ -6,6 +6,11 @@ import java.util.Map;
 import ncasa.identityaccess.application.EmailAlreadyRegisteredException;
 import ncasa.identityaccess.application.InvalidCredentialsException;
 import ncasa.identityaccess.application.InvalidRefreshTokenException;
+import ncasa.identityaccess.application.EmailVerificationRequiredException;
+import ncasa.identityaccess.application.InvalidEmailVerificationTokenException;
+import ncasa.identityaccess.application.ExpiredEmailVerificationTokenException;
+import ncasa.identityaccess.domain.EmailAlreadyVerifiedException;
+import ncasa.identityaccess.infrastructure.web.PublicAuthRateLimitExceededException;
 import ncasa.identityaccess.domain.InvalidEmailException;
 import ncasa.household.application.HouseholdNotFoundException;
 import ncasa.household.application.InvitationNotFoundException;
@@ -65,6 +70,33 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({InvalidCredentialsException.class, InvalidRefreshTokenException.class})
     ResponseEntity<ApiError> unauthorized(RuntimeException ex) {
         return response(HttpStatus.UNAUTHORIZED, ex.getMessage(), Map.of());
+    }
+
+    @ExceptionHandler(EmailVerificationRequiredException.class)
+    ResponseEntity<ApiError> emailVerificationRequired(EmailVerificationRequiredException ex) {
+        return response(HttpStatus.FORBIDDEN, ex.getMessage(), Map.of());
+    }
+
+    @ExceptionHandler(InvalidEmailVerificationTokenException.class)
+    ResponseEntity<ApiError> invalidEmailVerificationToken(InvalidEmailVerificationTokenException ex) {
+        return response(HttpStatus.BAD_REQUEST, ex.getMessage(), Map.of());
+    }
+
+    @ExceptionHandler(ExpiredEmailVerificationTokenException.class)
+    ResponseEntity<ApiError> expiredEmailVerificationToken(ExpiredEmailVerificationTokenException ex) {
+        return response(HttpStatus.GONE, ex.getMessage(), Map.of());
+    }
+
+    @ExceptionHandler(EmailAlreadyVerifiedException.class)
+    ResponseEntity<ApiError> alreadyVerified(EmailAlreadyVerifiedException ex) {
+        return response(HttpStatus.CONFLICT, ex.getMessage(), Map.of());
+    }
+
+    @ExceptionHandler(PublicAuthRateLimitExceededException.class)
+    ResponseEntity<ApiError> rateLimited(PublicAuthRateLimitExceededException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", Long.toString(ex.retryAfterSeconds()))
+                .body(error(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), Map.of()));
     }
 
     @ExceptionHandler(InvalidEmailException.class)
@@ -153,8 +185,11 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ApiError> response(HttpStatus status, String message, Map<String, String> fields) {
-        return ResponseEntity.status(status).body(
-                new ApiError(Instant.now(), status.value(), status.getReasonPhrase(), message, fields,
-                        MDC.get("requestId")));
+        return ResponseEntity.status(status).body(error(status, message, fields));
+    }
+
+    private ApiError error(HttpStatus status, String message, Map<String, String> fields) {
+        return new ApiError(Instant.now(), status.value(), status.getReasonPhrase(), message, fields,
+                MDC.get("requestId"));
     }
 }

@@ -197,9 +197,13 @@ class ExpenseIntegrationTests {
     }
 
     private String register(String email) throws Exception {
-        String response = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of("email", email, "password", "password123"))))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+                .andExpect(status().isCreated());
+        jdbc.update("UPDATE users SET email_verified_at = CURRENT_TIMESTAMP WHERE email = ?", email);
+        String response = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("email", email, "password", "password123"))))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         return json.readTree(response).get("accessToken").asString();
     }
 

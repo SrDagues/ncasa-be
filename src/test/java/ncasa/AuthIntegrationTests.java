@@ -19,11 +19,17 @@ import java.util.HexFormat;
 import java.util.stream.Collectors;
 import javax.crypto.spec.SecretKeySpec;
 import ncasa.common.infrastructure.logging.HttpRequestLoggingFilter;
+import ncasa.identityaccess.application.port.out.TransactionalEmail;
+import ncasa.identityaccess.application.port.out.TransactionalEmailSender;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -41,21 +47,25 @@ import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest
 @org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+@Import(AuthIntegrationTests.TestEmailConfiguration.class)
 class AuthIntegrationTests {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
     @Autowired JwtDecoder decoder;
     @Autowired JwtEncoder encoder;
     @Autowired JdbcTemplate jdbc;
+    @Autowired CapturingEmailSender emailSender;
 
     @BeforeEach
     void cleanDatabase() {
+        emailSender.email = null;
         jdbc.update("DELETE FROM expense_allocations");
         jdbc.update("DELETE FROM expenses");
         jdbc.update("DELETE FROM household_invitations");
         jdbc.update("DELETE FROM household_members");
         jdbc.update("DELETE FROM households");
         jdbc.update("DELETE FROM refresh_tokens");
+        jdbc.update("DELETE FROM email_verification_tokens");
         jdbc.update("DELETE FROM auth_identities");
         jdbc.update("DELETE FROM user_roles");
         jdbc.update("DELETE FROM users");
@@ -65,14 +75,12 @@ class AuthIntegrationTests {
         mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"User@Example.com\",\"password\":\"password123\"}"))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.allOf(
-                        org.hamcrest.Matchers.containsString("ncasa_refresh="),
-                        org.hamcrest.Matchers.containsString("HttpOnly"))))
-                .andExpect(jsonPath("$.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.refreshToken").doesNotExist())
-                .andExpect(jsonPath("$.expiresIn").value(900))
-                .andExpect(jsonPath("$.user.email").value("user@example.com"))
-                .andExpect(jsonPath("$.user.roles[0]").value("ROLE_USER"));
+                .andExpect(header().doesNotExist("Set-Cookie"))
+                .andExpect(jsonPath("$.status").value("PENDING_EMAIL_VERIFICATION"))
+                .andExpect(jsonPath("$.accessToken").doesNotExist());
+        org.assertj.core.api.Assertions.assertThat(emailSender.email).isNotNull();
+        org.assertj.core.api.Assertions.assertThat(emailSender.email.html()).contains("/verify-email#token=");
+        org.assertj.core.api.Assertions.assertThat(emailSender.email.text()).contains("/verify-email#token=");
     }
 
     @Test void shouldReturnConflictWhenEmailAlreadyExists() throws Exception {
@@ -110,6 +118,45 @@ class AuthIntegrationTests {
 
     @Test void shouldReturnUnauthorizedWhenUserDoesNotExist() throws Exception {
         loginExpectUnauthorized("missing@example.com", "password123");
+    }
+
+    @Test void shouldBlockLoginUntilEmailIsVerified() throws Exception {
+        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"pending@example.com\",\"password\":\"password123\"}"))
+                .andExpect(status().isCreated());
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"pending@example.com\",\"password\":\"password123\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Email verification required"));
+        loginExpectUnauthorized("pending@example.com", "wrong-password");
+    }
+
+    @Test void shouldReturnSafeStatusesForUnknownAndExpiredVerificationTokens() throws Exception {
+        mvc.perform(post("/api/auth/email-verification").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"unknown-token\"}"))
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"expired@example.com\",\"password\":\"password123\"}"))
+                .andExpect(status().isCreated());
+        String token = rawVerificationToken();
+        jdbc.update("UPDATE email_verification_tokens SET created_at = DATEADD('DAY', -2, CURRENT_TIMESTAMP), "
+                + "expires_at = DATEADD('DAY', -1, CURRENT_TIMESTAMP)");
+
+        mvc.perform(post("/api/auth/email-verification").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(java.util.Map.of("token", token))))
+                .andExpect(status().isGone());
+    }
+
+    @Test void shouldReturnNeutralAcceptedResponseWhenResendingVerification() throws Exception {
+        mvc.perform(post("/api/auth/email-verification/resend").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"missing@example.com\"}"))
+                .andExpect(status().isAccepted());
+
+        register("verified@example.com", "password123");
+        mvc.perform(post("/api/auth/email-verification/resend").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"verified@example.com\"}"))
+                .andExpect(status().isAccepted());
     }
 
     @Test void shouldGenerateValidAccessToken() throws Exception {
@@ -282,14 +329,30 @@ class AuthIntegrationTests {
         String credentials = json.writeValueAsString(
                 java.util.Map.of("email", "user@example.com", "password", "password123"));
 
-        MvcResult registration = mvc.perform(post("/api/auth/register")
+        mvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON).content(credentials))
-                .andExpect(status().isCreated()).andReturn();
-        JsonNode registrationBody = json.readTree(registration.getResponse().getContentAsString());
-        Cookie cookieA = refreshCookieFrom(registration.getResponse().getHeader("Set-Cookie"));
+                .andExpect(status().isCreated())
+                .andExpect(header().doesNotExist("Set-Cookie"));
+
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(credentials))
+                .andExpect(status().isForbidden());
+
+        String rawVerificationToken = rawVerificationToken();
+        mvc.perform(post("/api/auth/email-verification").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(java.util.Map.of("token", rawVerificationToken))))
+                .andExpect(status().isNoContent());
+        mvc.perform(post("/api/auth/email-verification").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(java.util.Map.of("token", rawVerificationToken))))
+                .andExpect(status().isBadRequest());
+
+        MvcResult login = mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON).content(credentials))
+                .andExpect(status().isOk()).andReturn();
+        JsonNode loginBody = json.readTree(login.getResponse().getContentAsString());
+        Cookie cookieA = refreshCookieFrom(login.getResponse().getHeader("Set-Cookie"));
 
         mvc.perform(get("/api/auth/me")
-                        .header("Authorization", "Bearer " + registrationBody.get("accessToken").asString()))
+                        .header("Authorization", "Bearer " + loginBody.get("accessToken").asString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("user@example.com"));
 
@@ -311,9 +374,20 @@ class AuthIntegrationTests {
 
     private JsonNode register(String email, String password) throws Exception {
         String body = json.writeValueAsString(java.util.Map.of("email", email, "password", password));
-        String response = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated());
+        jdbc.update("UPDATE users SET email_verified_at = CURRENT_TIMESTAMP WHERE email = ?", email.toLowerCase());
+        String response = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         return json.readTree(response);
+    }
+
+    private String rawVerificationToken() {
+        String marker = "#token=";
+        String text = emailSender.email.text();
+        int start = text.indexOf(marker) + marker.length();
+        int end = text.indexOf('\n', start);
+        return text.substring(start, end < 0 ? text.length() : end);
     }
 
     private void loginExpectUnauthorized(String email, String password) throws Exception {
@@ -347,5 +421,15 @@ class AuthIntegrationTests {
 
     private String sha256(String value) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    @TestConfiguration
+    static class TestEmailConfiguration {
+        @Bean @Primary CapturingEmailSender capturingEmailSender() { return new CapturingEmailSender(); }
+    }
+
+    static class CapturingEmailSender implements TransactionalEmailSender {
+        volatile TransactionalEmail email;
+        @Override public void send(TransactionalEmail email) { this.email = email; }
     }
 }
