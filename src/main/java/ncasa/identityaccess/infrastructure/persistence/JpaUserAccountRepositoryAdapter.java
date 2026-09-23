@@ -43,6 +43,12 @@ public class JpaUserAccountRepositoryAdapter implements UserAccountRepository {
     }
 
     @Override
+    public Optional<UserAccount> findByIdForUpdate(UserId id) {
+        return users.findForUpdateById(id.value()).flatMap(user ->
+                identities.findByProviderAndUser_Id(LOCAL, user.id()).map(this::toDomain));
+    }
+
+    @Override
     public Map<UserId, Email> findEmailsByIds(Set<UserId> ids) {
         return users.findAllById(ids.stream().map(UserId::value).toList()).stream()
                 .collect(Collectors.toMap(user -> new UserId(user.id()), user -> Email.of(user.email())));
@@ -50,11 +56,17 @@ public class JpaUserAccountRepositoryAdapter implements UserAccountRepository {
 
     @Override
     public UserAccount save(UserAccount account) {
-        if (account.id() != null) throw new UnsupportedOperationException("Updating accounts is not implemented yet");
+        if (account.id() != null) {
+            var user = users.findById(account.id().value()).orElseThrow();
+            user.update(account.status() == AccountStatus.ACTIVE, account.updatedAt(), account.emailVerifiedAt());
+            users.save(user);
+            return account;
+        }
         try {
-            var user = users.save(new JpaUserAccountEntity(account.email().value(), account.canAuthenticate(),
+            var user = users.save(new JpaUserAccountEntity(account.email().value(),
+                    account.status() == AccountStatus.ACTIVE,
                     account.roles().stream().map(Enum::name).collect(Collectors.toSet()),
-                    account.createdAt(), account.updatedAt()));
+                    account.createdAt(), account.updatedAt(), account.emailVerifiedAt()));
             identities.save(new JpaAuthIdentityEntity(user, LOCAL, account.email().value(),
                     account.passwordHash().value(), account.createdAt()));
             return account.withId(new UserId(user.id()));
@@ -69,6 +81,6 @@ public class JpaUserAccountRepositoryAdapter implements UserAccountRepository {
         return UserAccount.rehydrate(new UserId(user.id()), Email.of(user.email()),
                 new PasswordHash(identity.passwordHash()),
                 user.enabled() ? AccountStatus.ACTIVE : AccountStatus.DISABLED,
-                roles, user.createdAt(), user.updatedAt());
+                roles, user.createdAt(), user.updatedAt(), user.emailVerifiedAt());
     }
 }

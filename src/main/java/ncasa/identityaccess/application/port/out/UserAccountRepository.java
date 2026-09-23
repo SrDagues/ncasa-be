@@ -11,6 +11,7 @@ public interface UserAccountRepository {
     boolean existsByEmail(Email email);
     Optional<UserAccount> findByEmail(Email email);
     Optional<UserAccount> findById(UserId id);
+    Optional<UserAccount> findByIdForUpdate(UserId id);
     Map<UserId, Email> findEmailsByIds(Set<UserId> ids);
     UserAccount save(UserAccount account);
 }

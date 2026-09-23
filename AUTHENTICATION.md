@@ -44,6 +44,10 @@ La contraseña se almacena con BCrypt mediante `SpringPasswordHasher`; el domini
 
 Los access tokens son JWT HS256 de corta duración. El adaptador JWT incluye `sub`, `userId`, `email`, `roles`, `iat` y `exp`.
 
+Una cuenta local se registra con el email pendiente. El login, refresh y cualquier endpoint autenticado quedan
+bloqueados hasta que se confirme un token aleatorio de 256 bits. La base de datos conserva únicamente SHA-256 del
+token. El estado administrativo `ACTIVE`/`DISABLED` es independiente de `email_verified_at`.
+
 Los refresh tokens son valores aleatorios de 48 bytes. Nunca se almacenan en claro: se persiste SHA-256. En cada refresh se bloquea la fila, se valida la sesión, se emite una sesión nueva y se revoca la anterior apuntando a su sustituta.
 
 Para el cliente web, el access token se devuelve en JSON y se mantiene únicamente en memoria. El refresh token se transporta en la cookie `ncasa_refresh`, marcada como `HttpOnly`, con `SameSite=Lax` y limitada a `/api/auth`. JavaScript no puede leer esta cookie.
@@ -54,13 +58,25 @@ Los contratos HTTP se mantienen:
 
 ```text
 POST /api/auth/register
+POST /api/auth/email-verification
+POST /api/auth/email-verification/resend
 POST /api/auth/login
 POST /api/auth/refresh
 POST /api/auth/logout
 GET  /api/auth/me
 ```
 
-`register`, `login` y `refresh` devuelven:
+`register` devuelve `201 Created`, no crea sesión ni cookie y responde:
+
+```json
+{"status":"PENDING_EMAIL_VERIFICATION"}
+```
+
+El enlace del correo usa `/verify-email#token=...`; Angular extrae el fragmento y envía el token en el body de
+`POST /api/auth/email-verification`. La confirmación correcta devuelve `204`. El reenvío devuelve siempre `202`
+para no revelar si una dirección existe o ya está verificada.
+
+`login` y `refresh` devuelven:
 
 ```json
 {
@@ -108,7 +124,7 @@ La configuración de la cookie está bajo `app.auth.refresh-cookie`: nombre, rut
 
 ## Flujo web con curl
 
-Registrar una cuenta, si todavía no existe:
+Registrar una cuenta, si todavía no existe (la respuesta no autentica):
 
 ```bash
 curl -c cookies.txt \
@@ -156,3 +172,20 @@ Un futuro cliente móvil reutilizará los mismos casos de uso y podrá incorpora
 ## Pruebas
 
 Los tests de dominio y aplicación deben ser unitarios y no levantar Spring. Las pruebas HTTP/persistencia verifican los adaptadores y conservan los escenarios de registro, login, JWT, refresh, rotación, revocación y endpoints protegidos.
+
+## Correo transaccional
+
+La verificación se envía por la API HTTPS de Resend después del commit de registro. El puerto de aplicación no
+conoce DTOs de Resend. Los reintentos conservan una clave de idempotencia estable y los fallos de entrega nunca
+revierten la cuenta creada. La API key solo se proporciona mediante `RESEND_API_KEY`.
+
+Variables principales:
+
+```text
+RESEND_API_KEY=...
+RESEND_FROM_EMAIL=nCasa <no-reply@mail.ncasa.es>
+APP_FRONTEND_URL=https://app.ncasa.es
+EMAIL_VERIFICATION_TOKEN_TTL=24h
+EMAIL_VERIFICATION_RESEND_COOLDOWN=1m
+EMAIL_VERIFICATION_MAX_SENDS_PER_24H=5
+```

@@ -31,15 +31,25 @@ class JpaUserAccountEntity {
     private Instant createdAt;
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+    @Column(name = "email_verified_at")
+    private Instant emailVerifiedAt;
 
     protected JpaUserAccountEntity() {}
 
-    JpaUserAccountEntity(String email, boolean enabled, Set<String> roles, Instant createdAt, Instant updatedAt) {
+    JpaUserAccountEntity(String email, boolean enabled, Set<String> roles, Instant createdAt, Instant updatedAt,
+            Instant emailVerifiedAt) {
         this.email = email;
         this.enabled = enabled;
         this.roles.addAll(roles);
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.emailVerifiedAt = emailVerifiedAt;
+    }
+
+    void update(boolean enabled, Instant updatedAt, Instant emailVerifiedAt) {
+        this.enabled = enabled;
+        this.updatedAt = updatedAt;
+        this.emailVerifiedAt = emailVerifiedAt;
     }
 
     Long id() { return id; }
@@ -48,4 +58,5 @@ class JpaUserAccountEntity {
     Set<String> roles() { return Set.copyOf(roles); }
     Instant createdAt() { return createdAt; }
     Instant updatedAt() { return updatedAt; }
+    Instant emailVerifiedAt() { return emailVerifiedAt; }
 }
