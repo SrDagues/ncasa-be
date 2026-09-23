@@ -49,7 +49,7 @@ public final class EmailVerificationTemplate {
                               <span style="display:inline-block;padding:8px 12px;border-radius:999px;background-color:#e3ece5;color:#123c36;font-size:13px;font-weight:700">Tu hogar digital</span>
                               <p style="margin:24px 0 10px;color:#e05543;font-size:12px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase">Un último paso</p>
                               <h1 style="margin:0;color:#123c36;font-size:30px;line-height:1.15;letter-spacing:-0.8px">¡Tu casa ya casi está lista!</h1>
-                              <p style="margin:16px 0 0;color:#202624;font-size:16px;line-height:1.6">Confirma tu correo para entrar en nCasa y empezar a organizar todo lo que compartís en casa.</p>
+                              <p style="margin:16px 0 0;color:#202624;font-size:16px;line-height:1.6">Confirma tu correo para entrar en nCasa y empezar a organizar todo lo que compartís en el hogar.</p>
                               <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:24px">
                                 <tr>
                                   <td bgcolor="#f26b5b" style="border-radius:12px;background-color:#f26b5b">
@@ -72,7 +72,7 @@ public final class EmailVerificationTemplate {
         String text = """
                 ¡Tu casa ya casi está lista!
 
-                Confirma tu correo para entrar en nCasa y empezar a organizar todo lo que compartís en casa.
+                Confirma tu correo para entrar en nCasa y empezar a organizar todo lo que compartís en el hogar.
 
                 %s
 
