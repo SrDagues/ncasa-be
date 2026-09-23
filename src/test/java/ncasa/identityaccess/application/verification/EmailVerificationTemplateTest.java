@@ -26,11 +26,15 @@ class EmailVerificationTemplateTest {
                 .contains("color:#123c36")
                 .contains("background-color:#f26b5b")
                 .contains("¡Tu casa ya casi está lista!")
+                .contains("todo lo que compartís en el hogar")
+                .doesNotContain("todo lo que compartís en casa")
                 .contains("Confirmar mi correo")
                 .contains("https://app.ncasa.es/verify-email#token=safe_token-123")
                 .contains("20 de septiembre de 2026");
         assertThat(email.text())
                 .contains("¡Tu casa ya casi está lista!")
+                .contains("todo lo que compartís en el hogar")
+                .doesNotContain("todo lo que compartís en casa")
                 .contains("https://app.ncasa.es/verify-email#token=safe_token-123")
                 .contains("20 de septiembre de 2026")
                 .doesNotContain("<table", "style=");
